@@ -18,7 +18,7 @@ a { color: var(--peri); }
 button { font: inherit; color: inherit; touch-action: manipulation; cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
 img { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; overscroll-behavior: none; height: 100%; }
+html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; overscroll-behavior: none; height: var(--app-h, 100%); }
 
 /* ---------- primitives ---------- */
 .chip { font-family: var(--mono); font-size: 11px; line-height: 1; padding: 4px 6px; white-space: nowrap; }
@@ -107,7 +107,7 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 
 /* ---------- workout (no scroll) ---------- */
 .screen-plate {
-  position: fixed; top: 0; left: 0; right: 0; height: var(--app-h, 100%); margin: 0 auto; max-width: 440px; overflow: hidden;
+  position: absolute; top: 0; left: 0; right: 0; height: var(--app-h, 100%); margin: 0 auto; max-width: 440px; overflow: hidden; touch-action: none;
   padding: calc(var(--st) + 10px) 16px max(var(--sb), 12px);
   background: var(--lime); display: flex; flex-direction: column; gap: 8px;
 }
