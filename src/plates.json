@@ -1,0 +1,60 @@
+{
+  "_note": "All plates are 896x1200. Every mask is an alpha PNG at the same 896x1200 size, pixel-registered to its plate. centroidY is the mask's vertical centre as a fraction of plate height (used to pan the crop). blob = the asset id the reference .dc.html files use (/_blob/<id>).",
+  "plates": {
+    "I": {
+      "file": "plates/pl1-anterior.jpg", "view": "anterior", "blob": "93af713a15898ee43870a846cd88b802",
+      "masks": {
+        "pec":  { "file": "masks/pl1-pec.png",  "name": "Pectoralis major",       "centroidY": 0.44,  "blob": "0f015b0983bfb2eb0e60f642f1bfb638" },
+        "delt": { "file": "masks/pl1-delt.png", "name": "Deltoid, anterior",      "centroidY": 0.36,  "blob": "c8518d54ca82e6eed9d1bb93a45bc7d3" },
+        "tri":  { "file": "masks/pl1-tri.png",  "name": "Triceps brachii",        "centroidY": 0.309, "blob": "0f61deb3819728117d6474115c0614c6" },
+        "abs":  { "file": "masks/pl1-abs.png",  "name": "Rectus abdominis",       "centroidY": 0.619, "blob": "f403a709ef8682ed4cc1d2c89d25dc7b" },
+        "obl":  { "file": "masks/pl1-obl.png",  "name": "Obliquus externus",      "centroidY": 0.606, "blob": "47cedd19dca05fe20a2651dcbeb3aba7" }
+      }
+    },
+    "II": {
+      "file": "plates/pl2-posterior.jpg", "view": "posterior", "blob": "205e893d2ab366bb4a383fb83d55249c",
+      "masks": {
+        "trap":  { "file": "masks/pl2-trap.png",  "name": "Trapezius",            "centroidY": 0.419, "blob": "cc93db30fe6ecff69c018ec3a33fe634" },
+        "lat":   { "file": "masks/pl2-lat.png",   "name": "Latissimus dorsi",     "centroidY": 0.562, "blob": "dad5ef981a63d1266d9bb58b47b35ba0" },
+        "rdelt": { "file": "masks/pl2-rdelt.png", "name": "Deltoid, posterior",   "centroidY": 0.354, "blob": "4ee6b5a01817ebb72c310f14394f18ba" }
+      }
+    },
+    "III": {
+      "file": "plates/pl3-legs.jpg", "view": "fore & aft", "blob": "2abcadac3f746267df405297991b3438",
+      "masks": {
+        "quad":  { "file": "masks/pl3-quad.png",  "name": "Quadriceps femoris",   "centroidY": 0.407, "blob": "f5debd03a6b7e0c02d9d11ab99c7646d" },
+        "ham":   { "file": "masks/pl3-ham.png",   "name": "Hamstrings",           "centroidY": 0.479, "blob": "0e3b57144d5bb902f2ad6a40a1cfe33c" },
+        "glute": { "file": "masks/pl3-glute.png", "name": "Gluteus maximus",      "centroidY": 0.307, "blob": "88e9be562d29473af789dfa3c90942a9" },
+        "calf":  { "file": "masks/pl3-calf.png",  "name": "Gastrocnemius & soleus","centroidY": 0.704, "blob": "432fa71b9920131605c0b6a5f4403892" }
+      }
+    },
+    "IV": {
+      "file": "plates/pl4-lateral.jpg", "view": "lateral", "blob": "ea19587953aac10b6275ac2ba3c2d627",
+      "masks": {
+        "sdelt": { "file": "masks/pl4-sdelt.png", "name": "Deltoid, lateral",     "centroidY": 0.359, "blob": "3df292d8011e45115957d016261c582f" },
+        "bic":   { "file": "masks/pl4-bic.png",   "name": "Biceps brachii",       "centroidY": 0.476, "blob": "11c82a49da747ac4ddec0565d142b3b6" }
+      }
+    }
+  },
+  "sampleDays": [
+    { "name": "Push", "title": "The Push.", "lifts": [
+      { "name": "Bench press", "scheme": "3x5", "sets": 3, "hit": ["pec", "tri", "delt"] },
+      { "name": "Overhead press", "scheme": "3x5", "sets": 3, "hit": ["delt", "tri"] },
+      { "name": "Incline dumbbell press", "scheme": "3x8-12", "sets": 3, "hit": ["pec", "delt"] },
+      { "name": "Lateral raise", "scheme": "4x12-15", "sets": 4, "hit": ["sdelt"] },
+      { "name": "Rope pushdown", "scheme": "3x10-12", "sets": 3, "hit": ["tri"] },
+      { "name": "Overhead extension", "scheme": "3x10-12", "sets": 3, "hit": ["tri"] } ] },
+    { "name": "Pull", "title": "The Pull.", "lifts": [
+      { "name": "Barbell row", "scheme": "3x5", "sets": 3, "hit": ["lat", "rdelt", "trap"] },
+      { "name": "Lat pulldown", "scheme": "3x8-12", "sets": 3, "hit": ["lat"] },
+      { "name": "Face pull", "scheme": "3x15", "sets": 3, "hit": ["rdelt", "trap"] },
+      { "name": "Barbell curl", "scheme": "3x8-12", "sets": 3, "hit": ["bic"] },
+      { "name": "Hammer curl", "scheme": "3x10-12", "sets": 3, "hit": ["bic"] } ] },
+    { "name": "Legs", "title": "The Legs.", "lifts": [
+      { "name": "Squat", "scheme": "3x5", "sets": 3, "hit": ["quad", "glute"] },
+      { "name": "Romanian deadlift", "scheme": "3x8", "sets": 3, "hit": ["ham", "glute"] },
+      { "name": "Barbell hack squat", "scheme": "3x10", "sets": 3, "hit": ["quad"] },
+      { "name": "Standing calf raise", "scheme": "5x12", "sets": 5, "hit": ["calf"] },
+      { "name": "Hanging leg raise", "scheme": "3x12", "sets": 3, "hit": ["abs", "obl"] } ] }
+  ]
+}
