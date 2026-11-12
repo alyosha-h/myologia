@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { C, MUSCLES, PLATES, PLATE_IDS, asset, cap, plateOfDay, plateOfLift, word, OPENED, OPENING, type PlateId } from '../data';
 import { DOW, addDays, ddmm, fromIso, hasWork, iso, setsDoneIn, useStore, weekStart } from '../store';
-import { Barcode, Chip, Nav, PlateLayers, Rail, Reg, useCount, Wipe } from '../ui';
+import { Barcode, Chip, Nav, PlateLayers, Rail, Reg, useCount } from '../ui';
 import type { Tint } from '../ui';
 
 const MOON: Record<PlateId, { pos: string; tints: [string, string][]; name: string; color: string }> = {
@@ -105,7 +105,6 @@ export default function Home() {
 
   return (
     <div className="screen home">
-      <Wipe colors={[C.chart, C.lav, C.coral, C.ink, C.mint, C.yellow]} chips={['Pl.', todayPlate, 'loading']} />
 
       <header className="masthead">
         <div aria-hidden="true" className="ltile" style={{ width: 44, height: 44, fontSize: 18, background: C.chart, color: C.ink }}>
@@ -225,7 +224,7 @@ export default function Home() {
         <p className="mono11" style={{ position: 'relative', margin: 0, lineHeight: 1.5, maxWidth: 300 }}>
           This is the place where death delights to help the living. Over the door of the anatomy theatre.
         </p>
-        <div style={{ marginTop: 8 }}><Nav order={['home', 'plate', 'week', 'edit']} current="home" /></div>
+        <div style={{ marginTop: 8 }}><Nav current="home" /></div>
         <div className="foot">
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Barcode code={`MYO-${today}`} /><Chip bg={C.lav}>Early Preview</Chip></span>
           <a href="#/masks" className="mono10" style={{ color: C.ink }}>mask test &#8594;</a>

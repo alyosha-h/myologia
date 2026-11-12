@@ -114,11 +114,23 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 @keyframes dots { to { background-position: 24px 12px } }
 .dots { animation: dots 2.8s steps(8) infinite; }
 
-.wipe { position: fixed; inset: 0; z-index: 50; pointer-events: none; display: flex; flex-direction: column; }
-.wipe .bar { flex: 1; transform-origin: right; animation: wipe .55s cubic-bezier(.7, 0, .2, 1) both; }
-@keyframes wipe { from { transform: scaleX(1) } to { transform: scaleX(0) } }
-.wipe em { position: absolute; left: 50%; top: 50%; translate: -50% -50%; display: flex; gap: 3px; font-style: normal; animation: wipeTxt .9s steps(4) both; }
-@keyframes wipeTxt { 0%, 70% { opacity: 1 } 100% { opacity: 0; visibility: hidden } }
+/* ---------- page turn ---------- */
+.turn { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; --from: left; --to: right; }
+.turn.back { --from: right; --to: left; }
+.turn.reveal { pointer-events: none; }
+.turn .slat { flex: 1; margin-bottom: -1px; }
+.turn.cover .slat { transform-origin: var(--from); animation: slatIn .16s steps(4) calc(var(--i) * 22ms) both; }
+.turn.reveal .slat { transform-origin: var(--to); animation: slatOut .26s steps(5) calc(var(--i) * 34ms) both; }
+@keyframes slatIn { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+@keyframes slatOut { from { transform: scaleX(1) } to { transform: scaleX(0) } }
+.turn .reg { position: absolute; }
+.turn.cover .reg { animation: tintIn .01s linear .2s both; }
+.turn.reveal .reg, .turn.reveal .turn-label { animation: turnOff .01s linear .12s both; }
+@keyframes turnOff { to { visibility: hidden } }
+.turn-label { position: absolute; left: 0; right: 0; top: 50%; translate: 0 -50%; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.turn-label .chip { background: #fff; color: var(--ink); }
+.turn-label b { max-width: calc(100% - 32px); padding: 8px 14px 6px; background: var(--ink); color: var(--lime); font-size: 40px; line-height: 0.9; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+.turn.cover .turn-label { animation: stamp .2s steps(3) .14s both; }
 
 /* motto: misregistered blocks wipe out, text flickers */
 .motto { position: absolute; left: 24px; right: 24px; top: 326px; margin: 0; }
@@ -132,7 +144,7 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .wipe { display: none; }
+  .turn { display: none; }
 }
 
 /* ---------- workout (no scroll) ---------- */

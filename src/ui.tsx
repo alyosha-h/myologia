@@ -20,28 +20,41 @@ export function Rail({ n, size = 14, step = 0.12, cls = 'px', style }: {
   );
 }
 
-/** page entry: six palette bars wipe right while a chip glitches in the centre */
-export function Wipe({ colors, chips }: { colors: string[]; chips: [string, string, string] }) {
-  const [on, setOn] = useState(true);
-  useEffect(() => { const t = setTimeout(() => setOn(false), 1200); return () => clearTimeout(t); }, []);
-  if (!on) return null;
+export type Phase = 'cover' | 'hold' | 'reveal';
+
+/** set just before navigating, read once by the next page turn */
+export const transitionHint = { sealed: false };
+
+/**
+ * the page turn. slats in the destination's colours shut over the old screen, its name is stamped on them,
+ * the screens swap underneath, and the slats pull off the far side. `back` mirrors the direction.
+ */
+export function Turn({ phase, back, slats, kicker, label }: {
+  phase: Phase; back: boolean; slats: string[]; kicker: string; label: string;
+}) {
   return (
-    <div className="wipe" aria-hidden="true">
-      {colors.map((c, i) => <span key={i} className="bar" style={{ background: c, animationDelay: `${0.05 + i * 0.07}s` }} />)}
-      <em>
-        <Chip>{chips[0]}</Chip><Chip bg={C.chart}>{chips[1]}</Chip><Chip bg={C.lav} cls="flk">{chips[2]}</Chip>
-      </em>
+    <div className={`turn ${phase} ${back ? 'back' : ''}`} aria-hidden="true">
+      {slats.map((c, i) => <span key={i} className="slat" style={{ background: c, ['--i' as string]: i }} />)}
+      <Reg style={{ left: 14, top: 'calc(var(--st) + 14px)' }} /><Reg style={{ right: 14, top: 'calc(var(--st) + 14px)' }} />
+      <Reg style={{ left: 14, bottom: 'calc(var(--sb) + 14px)' }} /><Reg style={{ right: 14, bottom: 'calc(var(--sb) + 14px)' }} />
+      <div className="turn-label">
+        <span className="chip">{kicker}</span>
+        <b className="xb">{label}</b>
+      </div>
     </div>
   );
 }
 
 export type Route = 'home' | 'plate' | 'week' | 'masks' | 'edit';
 
-export function Nav({ order, current, h = 48 }: { order: Route[]; current: Route; h?: number }) {
+/** the same four tabs in the same order on every screen */
+const TABS: Route[] = ['home', 'plate', 'week', 'edit'];
+
+export function Nav({ current, h = 48 }: { current: Route; h?: number }) {
   const label: Record<Route, string> = { home: 'Home', plate: 'Plate', week: 'Week', masks: 'Masks', edit: 'Lifts' };
   return (
-    <nav aria-label="Atlas" className="nav" style={{ gridTemplateColumns: `repeat(${order.length}, minmax(0, 1fr))` }}>
-      {order.map((r) => r === current
+    <nav aria-label="Atlas" className="nav" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
+      {TABS.map((r) => r === current
         ? <span key={r} aria-current="page" style={{ minHeight: h, background: C.ink, color: C.lime }}>/ {label[r]}</span>
         : <a key={r} href={`#/${r === 'home' ? '' : r}`} style={{ minHeight: h }}>/ {label[r]}</a>)}
     </nav>

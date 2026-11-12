@@ -252,7 +252,7 @@ export default function Edit() {
         <button type="button" className="mtog" onClick={reset}>reset to the sheet</button>
       </div>
 
-      <div style={{ marginTop: 16 }}><Nav order={['home', 'plate', 'week', 'edit']} current="edit" /></div>
+      <div style={{ marginTop: 16 }}><Nav current="edit" /></div>
     </div>
   );
 }
