@@ -1,5 +1,5 @@
 // offline-first: precache the shell + plates/masks, cache-first for everything same-origin after.
-const V = 'myologia-v1';
+const V = 'myologia-v2'; // bump when a precached file changes under the same name (icons, plates, masks)
 const CORE = [
   './', './index.html', './manifest.webmanifest',
   './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png',
