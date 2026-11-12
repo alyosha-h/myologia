@@ -3,7 +3,7 @@ import raw from './plates.json';
 export const C = {
   lime: '#F0F7DC',
   lav: '#C9B5F0',
-  chart: '#D6E46E',
+  chart: '#DCEE5A',
   coral: '#F4A186',
   dlav: '#B79CEB',
   yellow: '#F5D54A',
@@ -75,6 +75,17 @@ for (const id of PLATE_IDS) {
     };
   }
 }
+
+/** a point deep inside each muscle (fraction of the plate), where its leader line lands. rightmost belly when there are two */
+export const ANCHOR: Record<string, [number, number]> = {
+  pec: [0.594, 0.443], delt: [0.693, 0.386], tri: [0.714, 0.295], abs: [0.493, 0.699], obl: [0.595, 0.632],
+  trap: [0.491, 0.397], lat: [0.531, 0.57], rdelt: [0.65, 0.343],
+  quad: [0.375, 0.47], ham: [0.675, 0.439], glute: [0.819, 0.308], calf: [0.808, 0.698],
+  sdelt: [0.633, 0.361], bic: [0.626, 0.464],
+};
+
+/** the colour field each plate is printed on */
+export const PLATE_COLOR: Record<PlateId, string> = { I: C.coral, II: C.dlav, III: C.chart, IV: C.mint };
 
 export const asset = (f: string) => import.meta.env.BASE_URL + f;
 
@@ -195,6 +206,15 @@ export function posFor(muscle: string, fw: number, fh: number): string {
   if (rh <= fh) return '50%';
   const p = (MUSCLES[muscle].centroidY * rh - fh * 0.42) / (rh - fh);
   return Math.round(Math.max(0, Math.min(1, p)) * 100) + '%';
+}
+
+/** where a muscle's anchor lands, in px, inside a fw x fh frame showing the plate at `pos` ("50% 30%"), object-fit: cover */
+export function anchorIn(muscle: string, fw: number, fh: number, pos: string): { x: number; y: number } | null {
+  const a = ANCHOR[muscle];
+  if (!a || !fw || !fh) return null;
+  const [px, py] = pos.split(' ').map((v) => parseFloat(v) / 100);
+  const s = Math.max(fw / 896, fh / 1200), rw = 896 * s, rh = 1200 * s;
+  return { x: (fw - rw) * (px || 0) + a[0] * rw, y: (fh - rh) * (py || 0) + a[1] * rh };
 }
 
 /* ---------- words ---------- */

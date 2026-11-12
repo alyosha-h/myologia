@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { asset, C, MUSCLES, PLATES, type PlateId } from './data';
+import { anchorIn, asset, C, MUSCLES, PLATES, type PlateId } from './data';
 
 export function Chip({ bg = C.white, fg = C.ink, cls = '', children, style }: {
   bg?: string; fg?: string; cls?: string; children: ReactNode; style?: CSSProperties;
@@ -42,7 +42,7 @@ export function Nav({ order, current, h = 48 }: { order: Route[]; current: Route
   return (
     <nav aria-label="Atlas" className="nav" style={{ gridTemplateColumns: `repeat(${order.length}, minmax(0, 1fr))` }}>
       {order.map((r) => r === current
-        ? <span key={r} aria-current="page" style={{ minHeight: h, background: C.chart }}>/ {label[r]}</span>
+        ? <span key={r} aria-current="page" style={{ minHeight: h, background: C.ink, color: C.lime }}>/ {label[r]}</span>
         : <a key={r} href={`#/${r === 'home' ? '' : r}`} style={{ minHeight: h }}>/ {label[r]}</a>)}
     </nav>
   );
@@ -65,15 +65,18 @@ export interface Tint { color: string; op: number; cls?: string; delay?: string 
  * an engraved plate with multiply tints clipped by muscle masks.
  * `pos` is a CSS position ("50% 30%") applied identically to the img and every mask so they stay registered.
  */
-export function PlateLayers({ plate, tints, pos = '50% 50%', fit = 'cover', imgCls = '', imgStyle, alt }: {
+export function PlateLayers({ plate, tints, pos = '50% 50%', fit = 'cover', imgCls = '', imgStyle, alt, field = C.lime }: {
   plate: PlateId; tints: Record<string, Tint | undefined>; pos?: string; fit?: 'cover' | 'fill';
   imgCls?: string; imgStyle?: CSSProperties; alt?: string;
+  /** the engraving is printed (multiply) onto this colour, so the scan's own paper never shows */
+  field?: string;
 }) {
   const P = PLATES[plate];
   const maskSize = fit === 'cover' ? 'cover' : '100% 100%';
   return (
     <>
-      <img className={`pimg ${imgCls}`} src={asset(P.file)} alt={alt ?? P.alt} draggable={false}
+      <span aria-hidden="true" className="layer" style={{ background: field }} />
+      <img className={`pimg ink ${imgCls}`} src={asset(P.file)} alt={alt ?? P.alt} draggable={false}
         style={{ objectFit: fit, objectPosition: pos, ...imgStyle }} />
       {P.masks.map((k) => {
         const t = tints[k];
@@ -90,6 +93,54 @@ export function PlateLayers({ plate, tints, pos = '50% 50%', fit = 'cover', imgC
         );
       })}
     </>
+  );
+}
+
+/** registration mark, the printer's crosshair */
+export function Reg({ size = 16, style, cls = '' }: { size?: number; style?: CSSProperties; cls?: string }) {
+  return (
+    <svg aria-hidden="true" className={`reg ${cls}`} width={size} height={size} viewBox="0 0 16 16" style={style}>
+      <circle cx="8" cy="8" r="4.5" fill="none" stroke="currentColor" />
+      <path d="M8 0v16M0 8h16" stroke="currentColor" />
+    </svg>
+  );
+}
+
+/** a barcode whose bars are the characters of `code`. decorative, but it does encode the thing it labels */
+export function Barcode({ code, h = 20, style }: { code: string; h?: number; style?: CSSProperties }) {
+  const bars: number[] = [1, 1];
+  for (const ch of code) { const n = ch.charCodeAt(0); bars.push(1 + (n & 3), 1 + ((n >> 2) & 1), 1 + ((n >> 3) & 3), 1 + ((n >> 5) & 1)); }
+  bars.push(1, 1, 1);
+  return (
+    <span aria-hidden="true" className="barcode" style={{ height: h, ...style }}>
+      {bars.map((w, i) => <i key={i} style={{ width: w, opacity: i % 2 ? 0 : 1 }} />)}
+    </span>
+  );
+}
+
+/**
+ * the atlas's leader line as a hud callout: a ring on the muscle, an elbow, a tag at the right edge.
+ * lives inside the same frame as PlateLayers and takes the same `pos`.
+ */
+export function Callout({ muscle, fw, fh, pos, color, letter, label }: {
+  muscle: string; fw: number; fh: number; pos: string; color: string; letter: string; label: string;
+}) {
+  const a = anchorIn(muscle, fw, fh, pos);
+  if (!a || a.y < 0 || a.y > fh) return null;
+  const up = a.y > 78;
+  const ly = up ? a.y - 30 : a.y + 30; // the shelf the tag sits on
+  const ex = Math.min(a.x + 30, fw - 16);
+  return (
+    <div aria-hidden="true" className="callout layer">
+      <svg width={fw} height={fh} viewBox={`0 0 ${fw} ${fh}`}>
+        <polyline points={`${a.x},${a.y} ${ex},${ly} ${fw - 16},${ly}`} fill="none" stroke={C.ink} strokeWidth="1" />
+        <circle cx={a.x} cy={a.y} r="5.5" fill={color} stroke={C.ink} />
+        <circle cx={a.x} cy={a.y} r="1.5" fill={C.ink} />
+      </svg>
+      <span className="callout-tag" style={up ? { right: 16, bottom: fh - ly } : { right: 16, top: ly }}>
+        <b style={{ background: color }}>{letter}</b><span>{label}</span>
+      </span>
+    </div>
   );
 }
 

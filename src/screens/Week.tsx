@@ -103,10 +103,11 @@ export default function Week() {
       </div>
       {rows.map(({ m, n }) => (
         <div key={m.key} className="wk-row">
-          <span className="sw" style={{ background: step(n) ?? 'transparent' }} />
-          <span className="wk-row-name">{m.name}</span>
-          <span className="mono10" style={{ color: '#4A3A60' }}>pl. {m.plate}</span>
-          <span className="wk-row-n">[ {fmt(n)} ]</span>
+          <span className="wk-row-name">{m.name}<small>pl. {m.plate}</small></span>
+          <span aria-hidden="true" className="wk-bar">
+            {Array.from({ length: 10 }, (_, j) => <i key={j} className={j < Math.ceil(n) ? '' : 'off'} style={{ background: j < Math.ceil(n) ? step(n)! : 'transparent' }} />)}
+          </span>
+          <span className={`wk-row-n ${n ? '' : 'zero'}`}>{fmt(n)}</span>
         </div>
       ))}
       <p className="mono10" style={{ margin: '10px 0 0', color: '#4A3A60' }}>completed sets · primary mover counts 1, assisting muscles &#189;</p>
