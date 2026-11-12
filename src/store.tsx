@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getAll, put, putMany } from './db';
-import { MUSCLES, seedProgram, type Day, type Lift, type Session } from './data';
+import { clear, get, getAll, put, putMany } from './db';
+import { MUSCLES, PROGRAM_VERSION, normLift, seedProgram, type Day, type Lift, type Session } from './data';
 
 /* ---------- dates (local, not UTC) ---------- */
 
@@ -32,6 +32,21 @@ interface Data {
   sessions: Record<string, Session>;
 }
 
+export interface Suggestion {
+  weight: number | null;
+  /** start: first time, from the programme. up: earned an increase. hold: same again. deload: three stalls, −10% */
+  why: 'start' | 'up' | 'hold' | 'deload' | 'none';
+  from: number | null;
+}
+
+/** did this entry earn the next increase: every set done and the last set reached the top of the range */
+export const earned = (l: Lift, e: { setsDone: boolean[]; reps?: number | null }) =>
+  e.setsDone.filter(Boolean).length >= l.sets && (e.reps ?? l.repMax) >= l.repMax;
+
+/** next weight after a session at `w` with entry `e` */
+export const nextAfter = (l: Lift, w: number, e: { setsDone: boolean[]; reps?: number | null }) =>
+  earned(l, e) && l.inc > 0 ? w + l.inc : w;
+
 interface Api extends Data {
   today: string;
   dayById: (id: string) => Day;
@@ -42,6 +57,11 @@ interface Api extends Data {
   /** completed sets per muscle for the 7 days starting monday. primary = 1, secondary = 0.5 */
   weekVolume: (monday: Date) => Record<string, number>;
   sessionNumber: (date: string) => number;
+  /** what to put on the bar for this lift on `date`, from the last time it was done */
+  suggest: (liftId: string, date: string) => Suggestion;
+  saveLift: (l: Lift) => void;
+  saveDays: (days: Day[]) => void;
+  resetProgram: () => Promise<void>;
 }
 
 const Ctx = createContext<Api | null>(null);
@@ -72,13 +92,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       let [lifts, days, sessions] = await Promise.all([
         getAll<Lift>('lifts'), getAll<Day & { order?: number }>('days'), getAll<Session>('sessions'),
       ]);
-      if (!days.length) {
+      const ver = (await get<{ key: string; v: number }>('meta', 'program'))?.v ?? 0;
+      if (ver < PROGRAM_VERSION) {
+        // v1 → v2: install the PPL split from the sheet. history stays; lift ids that match carry over.
         const seed = seedProgram();
-        lifts = seed.lifts;
-        days = seed.days.map((d, i) => ({ ...d, order: i }));
-        await putMany('lifts', lifts);
+        const keep = lifts.filter((l) => !seed.lifts.some((x) => x.id === l.id));
+        lifts = [...keep.map(normLift), ...seed.lifts];
+        days = seed.days;
+        const remap: Record<string, string> = { push: 'push-a', pull: 'pull-a', legs: 'legs-a' };
+        sessions = sessions.map((s) => (remap[s.dayId] ? { ...s, dayId: remap[s.dayId] } : s));
+        await clear('days');
         await putMany('days', days);
+        await putMany('lifts', lifts);
+        await putMany('sessions', sessions);
+        await put('meta', { key: 'program', v: PROGRAM_VERSION });
       }
+      lifts = lifts.map(normLift);
       days.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       setData({
         ready: true,
@@ -93,6 +122,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const saveSession = useCallback((s: Session) => {
     setData((d) => ({ ...d, sessions: { ...d.sessions, [s.id]: s } }));
     put('sessions', s).catch((e) => console.error('save failed', e));
+  }, []);
+
+  const saveLift = useCallback((l: Lift) => {
+    setData((d) => ({ ...d, lifts: { ...d.lifts, [l.id]: l } }));
+    put('lifts', l).catch((e) => console.error('save failed', e));
+  }, []);
+
+  const saveDays = useCallback((days: Day[]) => {
+    const ordered = days.map((d, i) => ({ ...d, order: i }));
+    setData((d) => ({ ...d, days: ordered }));
+    (async () => { await clear('days'); await putMany('days', ordered); })().catch((e) => console.error('save failed', e));
+  }, []);
+
+  const resetProgram = useCallback(async () => {
+    const seed = seedProgram();
+    await clear('days');
+    await putMany('days', seed.days);
+    await putMany('lifts', seed.lifts);
+    setData((d) => ({ ...d, days: seed.days, lifts: { ...d.lifts, ...Object.fromEntries(seed.lifts.map((l) => [l.id, l])) } }));
   }, []);
 
   const api = useMemo<Api>(() => {
@@ -145,8 +193,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     const sessionNumber = (date: string) => sorted.filter((s) => s.date < date).length + 1;
 
-    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber };
-  }, [data, today, saveSession]);
+    const suggest = (liftId: string, date: string): Suggestion => {
+      const l = lifts[liftId];
+      if (!l) return { weight: null, why: 'none', from: null };
+      // past exposures, newest first: a weight and at least one set
+      const hist: { w: number; e: Session['entries'][string] }[] = [];
+      for (let i = sorted.length - 1; i >= 0 && hist.length < 3; i--) {
+        const s = sorted[i];
+        if (s.date >= date) continue;
+        const e = s.entries[liftId];
+        if (e?.weight != null && e.setsDone.some(Boolean)) hist.push({ w: e.weight, e });
+      }
+      if (!hist.length) return l.start != null ? { weight: l.start, why: 'start', from: null } : { weight: null, why: 'none', from: null };
+      const { w, e } = hist[0];
+      if (earned(l, e) && l.inc > 0) return { weight: w + l.inc, why: 'up', from: w };
+      // three sessions in a row at the same weight without earning it: back off 10%
+      if (hist.length === 3 && l.inc > 0 && hist.every((h) => h.w === w && !earned(l, h.e)))
+        return { weight: Math.floor((w * 0.9) / 2.5) * 2.5, why: 'deload', from: w };
+      return { weight: w, why: 'hold', from: w };
+    };
+
+    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber, suggest, saveLift, saveDays, resetProgram };
+  }, [data, today, saveSession, saveLift, saveDays, resetProgram]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }

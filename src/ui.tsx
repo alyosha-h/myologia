@@ -35,12 +35,12 @@ export function Wipe({ colors, chips }: { colors: string[]; chips: [string, stri
   );
 }
 
-export type Route = 'home' | 'plate' | 'week' | 'masks';
+export type Route = 'home' | 'plate' | 'week' | 'masks' | 'edit';
 
 export function Nav({ order, current, h = 48 }: { order: Route[]; current: Route; h?: number }) {
-  const label: Record<Route, string> = { home: 'Home', plate: 'Plate', week: 'Week', masks: 'Masks' };
+  const label: Record<Route, string> = { home: 'Home', plate: 'Plate', week: 'Week', masks: 'Masks', edit: 'Lifts' };
   return (
-    <nav aria-label="Atlas" className="nav">
+    <nav aria-label="Atlas" className="nav" style={{ gridTemplateColumns: `repeat(${order.length}, minmax(0, 1fr))` }}>
       {order.map((r) => r === current
         ? <span key={r} aria-current="page" style={{ minHeight: h, background: C.chart }}>/ {label[r]}</span>
         : <a key={r} href={`#/${r === 'home' ? '' : r}`} style={{ minHeight: h }}>/ {label[r]}</a>)}

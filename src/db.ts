@@ -43,3 +43,19 @@ export async function putMany(store: StoreName, vals: unknown[]): Promise<void> 
 }
 
 export const put = (store: StoreName, val: unknown) => putMany(store, [val]);
+
+export async function clear(store: StoreName): Promise<void> {
+  const db = await open();
+  const t = db.transaction(store, 'readwrite');
+  t.objectStore(store).clear();
+  return done(t);
+}
+
+export async function get<T>(store: StoreName, key: string): Promise<T | undefined> {
+  const db = await open();
+  return new Promise((res, rej) => {
+    const r = db.transaction(store).objectStore(store).get(key);
+    r.onsuccess = () => res(r.result as T | undefined);
+    r.onerror = () => rej(r.error);
+  });
+}

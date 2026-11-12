@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { C, MUSCLES, PAL, PLATES, plateOfLift, posFor, type Entry } from '../data';
-import { DOW, ddmm, fromIso, setsDoneIn, useStore } from '../store';
+import { C, MUSCLES, PAL, PLATES, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
+import { DOW, ddmm, fromIso, nextAfter, setsDoneIn, useStore } from '../store';
 import { Chip, LetterTile, Nav, PlateLayers, Rail, useSize, Wipe } from '../ui';
 import type { Tint } from '../ui';
 
@@ -20,13 +20,38 @@ export default function Workout() {
   const [last, setLast] = useState<string | null>(null);
   useEffect(() => { setI(firstOpen()); /* eslint-disable-line */ }, [day.id]);
 
+  const [figRef, fig] = useSize<HTMLElement>();
+
+  const cycleDay = () => {
+    const k = st.days.findIndex((d) => d.id === day.id);
+    st.saveSession({ ...session, dayId: st.days[(k + 1) % st.days.length].id });
+  };
+
+  if (!dayLifts.length) {
+    return (
+      <div className="screen-plate">
+        <header className="w-head">
+          <LetterTile letters={['P', 'l', '0']} label="Empty plate" />
+          <div className="w-title"><h1>{day.title}</h1></div>
+          <button type="button" className="w-day" onClick={cycleDay} aria-label={`Change day, now ${day.name}`}>
+            <Chip bg={C.coral}>{day.name} &#8635;</Chip>
+          </button>
+        </header>
+        <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
+          <p style={{ margin: 0, fontSize: 18 }}>No lifts on this day yet.</p>
+          <a href="#/edit" className="mtog" style={{ alignSelf: 'flex-start', color: C.ink, background: C.chart, textDecoration: 'none' }}>edit lifts &#8594;</a>
+        </div>
+        <Nav order={['home', 'plate', 'week']} current="plate" h={44} />
+      </div>
+    );
+  }
+
   const idx = Math.min(i, dayLifts.length - 1);
   const L = dayLifts[idx];
   const col = PAL[idx % PAL.length];
   const prim = L.hit[0];
   const plate = plateOfLift(L);
 
-  const [figRef, fig] = useSize<HTMLElement>();
   const pos = `50% ${posFor(prim, fig.w, fig.h)}`;
 
   const tints: Record<string, Tint> = {};
@@ -35,15 +60,18 @@ export default function Workout() {
 
   const entry: Entry = session.entries[L.id] ?? { weight: null, setsDone: Array(L.sets).fill(false) };
   const setsDone = Array.from({ length: L.sets }, (_, s) => !!entry.setsDone[s]);
-  const prev = st.prevWeight(L.id, today);
+  const sug = st.suggest(L.id, today);
+  const allDone = setsDone.every(Boolean);
+  const reps = entry.reps ?? L.repMax;
 
   const write = (e: Entry) => st.saveSession({ ...session, entries: { ...session.entries, [L.id]: e } });
   const setWeight = (w: number | null) => write({ ...entry, setsDone, weight: w == null ? null : Math.max(0, w) });
+  const setReps = (r: number) => write({ ...entry, setsDone, reps: Math.max(0, Math.min(99, r)) });
   const toggle = (s: number) => {
     const nd = setsDone.slice(); nd[s] = !nd[s];
-    // first set ticked with no weight entered: carry last session's weight
-    const weight = entry.weight == null && nd[s] && prev != null ? prev : entry.weight;
-    write({ weight, setsDone: nd });
+    // first set ticked with no weight entered: take the suggested weight
+    const weight = entry.weight == null && nd[s] ? sug.weight : entry.weight;
+    write({ ...entry, weight, setsDone: nd });
     setLast(`${day.id}-${L.id}-${s}`);
     navigator.vibrate?.(8);
   };
@@ -56,18 +84,16 @@ export default function Workout() {
   });
 
   const isLast = idx === dayLifts.length - 1;
-  const next = () => {
+  const advance = () => {
     if (!isLast) return setI(idx + 1);
     if (!session.sealed) st.saveSession({ ...session, sealed: true });
     location.hash = '#/week';
   };
-  const cycleDay = () => {
-    const k = st.days.findIndex((d) => d.id === day.id);
-    st.saveSession({ ...session, dayId: st.days[(k + 1) % st.days.length].id });
-  };
-
   const d = fromIso(today);
-  const reps = L.scheme.split('×')[1] ?? '';
+  const w = entry.weight ?? sug.weight;
+  const next = w != null ? nextAfter(L, w, { setsDone, reps }) : null;
+  const hint = sug.why === 'up' ? `\u2191 +${L.inc}, was ${sug.from}` : sug.why === 'deload' ? `deload, was ${sug.from}`
+    : sug.why === 'hold' ? `hold, last ${sug.from}` : sug.why === 'start' ? 'start weight' : L.note ?? 'bodyweight';
   const pad = (n: number) => (n < 10 ? '0' : '') + n;
 
   return (
@@ -118,14 +144,14 @@ export default function Workout() {
           <h2>{L.name}</h2>
           <span className="w-card-meta">
             <span className="mono10">{pad(idx + 1)} / {pad(dayLifts.length)}  &#183;  {String.fromCharCode(65 + idx)}</span>
-            <span style={{ display: 'flex', gap: 3 }}><Chip bg={col}>{L.scheme}</Chip><Chip>Pl. {plate}</Chip></span>
+            <span style={{ display: 'flex', gap: 3 }}><Chip bg={col}>{schemeOf(L)}</Chip><Chip>Pl. {plate}</Chip></span>
           </span>
         </div>
         <div className="w-card-mid">
           <div role="group" aria-label="Weight" className="stepper">
-            <button type="button" aria-label="Less weight" onClick={() => entry.weight != null && setWeight(entry.weight - 5)}>&#8722;</button>
+            <button type="button" aria-label="Less weight" onClick={() => w != null && setWeight(w - 2.5)}>&#8722;</button>
             <label style={{ background: col }}>
-              <input inputMode="decimal" aria-label="Weight in pounds" placeholder="&#8212;"
+              <input inputMode="decimal" aria-label="Weight in pounds" placeholder={sug.weight != null ? String(sug.weight) : '\u2014'}
                 value={entry.weight ?? ''}
                 onFocus={(e) => e.currentTarget.select()}
                 onChange={(e) => {
@@ -136,13 +162,24 @@ export default function Workout() {
                 }} />
               <span className="mono11">lb</span>
             </label>
-            <button type="button" aria-label="More weight" onClick={() => setWeight(entry.weight == null ? (prev ?? 45) : entry.weight + 5)}>+</button>
+            <button type="button" aria-label="More weight" onClick={() => setWeight(w == null ? 45 : w + 2.5)}>+</button>
           </div>
           <span style={{ flexGrow: 1 }} />
-          <span className="mono11" style={{ textAlign: 'right', lineHeight: 1.4 }}>
-            {L.sets} sets &#183; {reps} reps
-            {prev != null && <><br /><span style={{ background: C.white, padding: '1px 4px' }}>last {prev} lb</span></>}
-          </span>
+          {allDone ? (
+            <div className="w-reps">
+              <span className="mono9">last set reps{next != null && w != null && next > w ? <> &#183; <b>next {next}</b></> : next != null ? <> &#183; next {next}</> : null}</span>
+              <div role="group" aria-label="Reps on the last set" className="stepper sm">
+                <button type="button" aria-label="Fewer reps" onClick={() => setReps(reps - 1)}>&#8722;</button>
+                <label><span className="w-reps-n" aria-live="polite">{reps}</span></label>
+                <button type="button" aria-label="More reps" onClick={() => setReps(reps + 1)}>+</button>
+              </div>
+            </div>
+          ) : (
+            <span className="mono11" style={{ textAlign: 'right', lineHeight: 1.4 }}>
+              {L.sets} sets &#183; {repsOf(L)} reps{L.amrap ? ' \u00b7 amrap' : ''}
+              <br /><span style={{ background: sug.why === 'up' ? C.chart : sug.why === 'deload' ? C.coral : C.white, padding: '1px 4px' }}>{hint}</span>
+            </span>
+          )}
         </div>
         <div role="group" aria-label="Sets" className="w-sets">
           {setsDone.map((dn, s) => {
@@ -161,7 +198,7 @@ export default function Workout() {
 
       <div className="w-next">
         <button type="button" className="w-prev" aria-label="Previous lift" onClick={() => idx > 0 && setI(idx - 1)}>&#8592;</button>
-        <button type="button" className="w-go" onClick={next}
+        <button type="button" className="w-go" onClick={advance}
           style={{ background: isLast ? C.ink : C.chart, color: isLast ? C.lime : C.ink }}>
           <span className="w-go-l">{isLast ? (session.sealed ? 'Plate sealed' : 'Seal the plate') : `Next: ${dayLifts[idx + 1].name}`}</span>
           <span className="w-go-n">{got}/{total}</span>

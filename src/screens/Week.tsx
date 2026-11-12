@@ -1,4 +1,4 @@
-import { C, MUSCLES, PLATES, PLATE_IDS } from '../data';
+import { C, MUSCLES, PLATES, PLATE_IDS, kindOf } from '../data';
 import { DOW, addDays, ddmm, fromIso, hasWork, iso, isoWeek, useStore, weekStart } from '../store';
 import { Chip, Nav, PlateLayers, Rail, Wipe } from '../ui';
 import type { Tint } from '../ui';
@@ -37,7 +37,7 @@ export default function Week() {
     const s = st.sessions[date];
     const t = date === st.today;
     const kind = s && hasWork(s) ? st.dayById(s.dayId).name.toUpperCase() : date < st.today ? 'REST' : '—';
-    const kbg = s && hasWork(s) ? KIND[st.dayById(s.dayId).name] ?? C.chart : C.white;
+    const kbg = s && hasWork(s) ? KIND[kindOf(st.dayById(s.dayId))] ?? C.chart : C.white;
     return { date, dow: DOW[addDays(mon, i).getDay()].toUpperCase(), kind, kbg, bg: t ? C.ink : C.white, fg: t ? C.lime : C.ink };
   });
 
@@ -111,7 +111,7 @@ export default function Week() {
       ))}
       <p className="mono10" style={{ margin: '10px 0 0', color: '#4A3A60' }}>completed sets · primary mover counts 1, assisting muscles &#189;</p>
       <p className="wk-coda">{coda}</p>
-      <div style={{ marginTop: 8 }}><Nav order={['plate', 'week', 'home']} current="week" /></div>
+      <div style={{ marginTop: 8 }}><Nav order={['plate', 'week', 'edit', 'home']} current="week" /></div>
       <div className="foot">
         <Chip bg={C.chart}>Early Preview</Chip>
         <span className="mono10">wk {wk} &#183; {today.getFullYear()}</span>

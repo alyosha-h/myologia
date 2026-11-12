@@ -80,9 +80,25 @@ export const asset = (f: string) => import.meta.env.BASE_URL + f;
 
 /* ---------- program model ---------- */
 
-export interface Lift { id: string; name: string; scheme: string; sets: number; hit: string[] }
-export interface Day { id: string; name: string; title: string; color: string; lifts: string[] }
-export interface Entry { weight: number | null; setsDone: boolean[] }
+export interface Lift {
+  id: string;
+  name: string;
+  sets: number;
+  repMin: number;
+  repMax: number;
+  /** lb added after a session where every set was done and the last set reached repMax. 0 = never auto-add */
+  inc: number;
+  /** first-session weight, lb. null = bodyweight / unknown */
+  start: number | null;
+  /** last set as many reps as possible */
+  amrap?: boolean;
+  note?: string;
+  hit: string[]; // muscle keys, primary first
+  /** legacy, pre-v2 lifts only */
+  scheme?: string;
+}
+export interface Day { id: string; name: string; title: string; color: string; lifts: string[]; order?: number }
+export interface Entry { weight: number | null; setsDone: boolean[]; /** reps on the last set */ reps?: number | null }
 export interface Session {
   id: string; // = date, one session per calendar day
   date: string; // YYYY-MM-DD local
@@ -91,26 +107,83 @@ export interface Session {
   sealed: boolean;
 }
 
-const DAY_COLOR: Record<string, string> = { Push: C.chart, Pull: C.lav, Legs: C.coral };
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export const repsOf = (l: Lift) => (l.repMin === l.repMax ? String(l.repMax) : `${l.repMin}–${l.repMax}`);
+export const schemeOf = (l: Lift) => `${l.sets}×${repsOf(l)}`;
+
+/** fill v2 fields on lifts saved by v1 ("3x8-12") */
+export function normLift(l: Lift): Lift {
+  if (l.repMin != null) return l;
+  const m = (l.scheme ?? '').match(/(\d+)\s*[x×]\s*(\d+)(?:\s*[-–]\s*(\d+))?/);
+  const lo = m ? +m[2] : 8, hi = m && m[3] ? +m[3] : lo;
+  return { ...l, sets: l.sets ?? (m ? +m[1] : 3), repMin: lo, repMax: hi, inc: 2.5, start: null };
+}
+
+/** "Push A" → "Push" */
+export const kindOf = (d: Day) => d.name.split(' ')[0];
+export const DAY_COLOR: Record<string, string> = { Push: C.chart, Pull: C.lav, Legs: C.coral };
+export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export const round25 = (n: number) => Math.round(n / 2.5) * 2.5;
+
+/**
+ * the split from PPL_Template_v2.xlsx (Routine sheet), Mon–Sun minus Thursday.
+ * start weights follow the sheet: floor(1RM × training % for the top of the rep range, 2.5).
+ * progression follows the sheet: hit the top of the range on the last set → add `inc` next time.
+ */
+const L = (id: string, name: string, sets: number, repMin: number, repMax: number, start: number | null, hit: string[], extra: Partial<Lift> = {}): Lift =>
+  ({ id, name, sets, repMin, repMax, inc: start == null ? 0 : 2.5, start, hit, ...extra });
+
+export const PROGRAM_VERSION = 2;
 
 export function seedProgram(): { lifts: Lift[]; days: Day[] } {
-  const lifts: Lift[] = [];
-  const days: Day[] = raw.sampleDays.map((d) => {
-    const ids = d.lifts.map((l) => {
-      const id = slug(l.name);
-      lifts.push({ id, name: l.name, scheme: l.scheme.replace('x', '×').replace('-', '–'), sets: l.sets, hit: l.hit });
-      return id;
-    });
-    return { id: slug(d.name), name: d.name, title: d.title, color: DAY_COLOR[d.name] ?? C.chart, lifts: ids };
-  });
+  const lifts = [
+    L('deadlift', 'Deadlift', 1, 5, 5, 225, ['glute', 'ham', 'trap', 'lat'], { amrap: true }),
+    L('barbell-row', 'Barbell row', 5, 5, 10, 145, ['lat', 'rdelt', 'trap', 'bic'], { amrap: true }),
+    L('lat-pulldown', 'Lat pulldown', 3, 8, 12, 120, ['lat', 'bic']),
+    L('hammer-curl', 'Hammer curl', 3, 8, 12, 35, ['bic']),
+    L('dumbbell-curl', 'Dumbbell curl', 3, 8, 12, 35, ['bic']),
+    L('dumbbell-row', 'Dumbbell row', 3, 8, 12, 45, ['lat', 'rdelt', 'bic']),
+    L('d-handle-pull', 'D-handle pull', 5, 8, 12, 110, ['lat', 'trap', 'rdelt', 'bic']),
+    L('face-pull', 'Face pull', 3, 15, 20, 47.5, ['rdelt', 'trap'], { note: 'rope. no cable? band pull-aparts' }),
+    L('bench-press', 'Bench press', 3, 5, 5, 162.5, ['pec', 'tri', 'delt'], { amrap: true }),
+    L('incline-bench-press', 'Incline bench press', 3, 5, 5, 130, ['pec', 'delt', 'tri'], { amrap: true }),
+    L('dumbbell-press', 'Dumbbell press', 3, 8, 12, 50, ['pec', 'tri', 'delt'], { inc: 0, note: 'flat' }),
+    L('incline-dumbbell-press', 'Incline dumbbell press', 3, 8, 12, 50, ['pec', 'delt', 'tri']),
+    L('lateral-raise', 'Lateral raise', 4, 15, 20, 30, ['sdelt']),
+    L('skullcrushers', 'Skullcrushers', 3, 8, 12, 15, ['tri']),
+    L('overhead-extension', 'Overhead extension', 3, 8, 12, 45, ['tri']),
+    L('squat', 'Squat', 3, 5, 5, 152.5, ['quad', 'glute'], { amrap: true }),
+    L('romanian-deadlift', 'Romanian deadlift', 3, 8, 12, 100, ['ham', 'glute']),
+    L('barbell-hack-squat', 'Barbell hack squat', 3, 8, 12, 100, ['quad', 'glute']),
+    L('slider-leg-curl', 'Slider leg curl', 3, 8, 12, null, ['ham'], { note: 'bodyweight, add reps' }),
+    L('calf-raise', 'Calf raise', 5, 8, 12, 95, ['calf']),
+  ];
+  const pullB = ['lat-pulldown', 'hammer-curl', 'dumbbell-curl', 'dumbbell-row', 'd-handle-pull', 'face-pull'];
+  const day = (id: string, name: string, title: string, ls: string[]): Day =>
+    ({ id, name, title, color: DAY_COLOR[name.split(' ')[0]], lifts: ls });
+  const days = [
+    day('pull-a', 'Pull A', 'The Pull.', ['deadlift', ...pullB]),
+    day('push-a', 'Push A', 'The Push.', ['bench-press', 'dumbbell-press', 'incline-dumbbell-press', 'lateral-raise', 'skullcrushers', 'overhead-extension']),
+    day('legs-a', 'Legs A', 'The Legs.', ['squat', 'romanian-deadlift', 'barbell-hack-squat', 'slider-leg-curl', 'calf-raise']),
+    day('pull-b', 'Pull B', 'The Pull.', ['barbell-row', ...pullB]),
+    day('push-b', 'Push B', 'The Push.', ['incline-bench-press', 'dumbbell-press', 'lateral-raise', 'skullcrushers', 'overhead-extension']),
+    day('legs-b', 'Legs B', 'The Legs.', ['squat', 'romanian-deadlift', 'barbell-hack-squat', 'calf-raise', 'slider-leg-curl']),
+  ].map((d, i) => ({ ...d, order: i }));
   return { lifts, days };
 }
 
 export const plateOfLift = (l: Lift): PlateId => MUSCLES[l.hit[0]].plate;
 
-/** the plate a day "opens": plate of its first lift */
-export const plateOfDay = (d: Day, lifts: Record<string, Lift>): PlateId => plateOfLift(lifts[d.lifts[0]]);
+/** the plate a day "opens": the plate holding the most of its sets (by primary mover), ties to the earliest lift */
+export const plateOfDay = (d: Day, lifts: Record<string, Lift>): PlateId => {
+  const n: Partial<Record<PlateId, number>> = {};
+  let best: PlateId | null = null;
+  for (const id of d.lifts) {
+    const l = lifts[id]; if (!l?.hit[0] || !MUSCLES[l.hit[0]]) continue;
+    const p = plateOfLift(l); n[p] = (n[p] ?? 0) + l.sets;
+    if (!best || n[p]! > n[best]!) best = p;
+  }
+  return best ?? 'I';
+};
 
 /**
  * vertical crop for a muscle inside a frame of fw x fh (plate is object-fit: cover).

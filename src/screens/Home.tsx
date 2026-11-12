@@ -217,7 +217,7 @@ export default function Home() {
         <p className="mono11" style={{ position: 'relative', margin: 0, lineHeight: 1.5, maxWidth: 300 }}>
           This is the place where death delights to help the living. Over the door of the anatomy theatre.
         </p>
-        <div style={{ marginTop: 8 }}><Nav order={['home', 'plate', 'week']} current="home" /></div>
+        <div style={{ marginTop: 8 }}><Nav order={['home', 'plate', 'week', 'edit']} current="home" /></div>
         <div className="foot">
           <Chip bg={C.lav}>Early Preview</Chip>
           <a href="#/masks" className="mono10" style={{ color: C.ink }}>mask test &#8594;</a>
