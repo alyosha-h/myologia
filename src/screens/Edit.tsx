@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C, DAY_COLOR, MUSCLES, PAL, PLATE_IDS, PLATES, kindOf, repsOf, schemeOf, slug, type Day, type Lift } from '../data';
+import { C, DAY_COLOR, MUSCLES, PLATE_IDS, PLATES, kindOf, palFor, repsOf, schemeOf, slug, type Day, type Lift } from '../data';
 import { useStore } from '../store';
 import { Chip, Nav } from '../ui';
 
@@ -199,7 +199,8 @@ export default function Edit() {
       <ol aria-label={`Lifts on ${day.name}`} className="ed-lifts">
         {dayLifts.map((l, j) => {
           const isOpen = open === l.id;
-          const col = PAL[j % PAL.length];
+          const pal = palFor(DAY_COLOR[kindOf(day)] ?? day.color);
+          const col = pal[j % pal.length]; // same letter colours as the plate screen
           const shared = days.filter((d) => d.id !== day.id && d.lifts.includes(l.id)).map((d) => d.name);
           return (
             <li key={l.id} className="ed-lift" style={{ borderWidth: isOpen ? 2 : 1 }}>

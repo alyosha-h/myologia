@@ -19,6 +19,17 @@ routes (hash): `#/` home · `#/plate` today's workout · `#/week` survey · `#/m
 - `src/screens/*` — Home, Workout, Week, MaskTest
 - `public/sw.js` — offline: precaches shell + plates + masks, cache-first after
 
+## art direction
+
+pastel print-ware over an 1851 atlas. the rules:
+
+- three voices. serif italic = the engraver (names, titles, roman numerals). archivo expanded black = the machine (every arabic number: weights, sets, counts). plex mono = the ledger (metadata chips)
+- plates are never shown as scans. `PlateLayers` knocks the scan back to line and multiplies it onto a `field` colour, so the figure is printed on the page, riso-style. each plate owns a field (I coral, II lavender, III chartreuse, IV mint)
+- tints are flat colour laid *under* the line work, not multiplied over it, so they stay clean on any field. on the plate screen the field is the day's colour and `palFor(field)` picks lift colours that still read on it
+- motion: the home screen is the poster and may loop (ticking ring, flicker, drift). the plate screen only moves in answer to you: plate pans, tint lands out of register and snaps in, ring stamps, leader draws, tag unrolls. everything is stepped, nothing eases
+- the atlas's leader lines are the hud: `Callout` drops a ring on the primary mover (`ANCHOR` in `data.ts`) and elbows out to a tag
+- furniture is print furniture: registration marks, tick rulers, barcodes, segmented meters. nothing decorative that doesn't look like it came off a press
+
 ## decisions made
 
 - one session per calendar day. today's day = the one after the last worked session (push → pull → legs); `↻` on the plate screen overrides it
