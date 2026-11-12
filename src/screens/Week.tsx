@@ -111,7 +111,7 @@ export default function Week() {
       ))}
       <p className="mono10" style={{ margin: '10px 0 0', color: '#4A3A60' }}>completed sets · primary mover counts 1, assisting muscles &#189;</p>
       <p className="wk-coda">{coda}</p>
-      <div style={{ marginTop: 8 }}><Nav order={['plate', 'week', 'edit', 'home']} current="week" /></div>
+      <div style={{ marginTop: 8 }}><Nav current="week" /></div>
       <div className="foot">
         <Chip bg={C.chart}>Early Preview</Chip>
         <span className="mono10">wk {wk} &#183; {today.getFullYear()}</span>

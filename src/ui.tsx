@@ -47,11 +47,14 @@ export function Turn({ phase, back, slats, kicker, label }: {
 
 export type Route = 'home' | 'plate' | 'week' | 'masks' | 'edit';
 
-export function Nav({ order, current, h = 48 }: { order: Route[]; current: Route; h?: number }) {
+/** the same four tabs in the same order on every screen */
+const TABS: Route[] = ['home', 'plate', 'week', 'edit'];
+
+export function Nav({ current, h = 48 }: { current: Route; h?: number }) {
   const label: Record<Route, string> = { home: 'Home', plate: 'Plate', week: 'Week', masks: 'Masks', edit: 'Lifts' };
   return (
-    <nav aria-label="Atlas" className="nav" style={{ gridTemplateColumns: `repeat(${order.length}, minmax(0, 1fr))` }}>
-      {order.map((r) => r === current
+    <nav aria-label="Atlas" className="nav" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
+      {TABS.map((r) => r === current
         ? <span key={r} aria-current="page" style={{ minHeight: h, background: C.ink, color: C.lime }}>/ {label[r]}</span>
         : <a key={r} href={`#/${r === 'home' ? '' : r}`} style={{ minHeight: h }}>/ {label[r]}</a>)}
     </nav>

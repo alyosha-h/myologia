@@ -41,7 +41,7 @@ export default function Workout() {
           <p style={{ margin: 0, fontSize: 18 }}>No lifts on this day yet.</p>
           <a href="#/edit" className="mtog" style={{ alignSelf: 'flex-start', color: C.ink, background: C.chart, textDecoration: 'none' }}>edit lifts &#8594;</a>
         </div>
-        <Nav order={['home', 'plate', 'week']} current="plate" h={44} />
+        <Nav current="plate" h={44} />
       </div>
     );
   }
@@ -213,7 +213,7 @@ export default function Workout() {
         </button>
       </div>
 
-      <Nav order={['home', 'plate', 'week']} current="plate" h={44} />
+      <Nav current="plate" h={44} />
     </div>
   );
 }

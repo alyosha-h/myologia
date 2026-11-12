@@ -38,7 +38,7 @@ export default function MaskTest() {
           </section>
         );
       })}
-      <Nav order={['home', 'plate', 'week', 'edit']} current="masks" />
+      <Nav current="masks" />
     </div>
   );
 }
