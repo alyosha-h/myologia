@@ -100,6 +100,52 @@ function LiftForm({ lift, sharedWith, onSave }: { lift: Lift; sharedWith: string
   );
 }
 
+function CloudSync() {
+  const st = useStore();
+  const [code, setCode] = useState('');
+  const [bad, setBad] = useState(false);
+  const link = async (c?: string) => {
+    setBad(false);
+    const ok = await st.linkCloud(c);
+    if (!ok) setBad(true);
+  };
+  const statusText = { off: 'off', syncing: 'syncing…', synced: 'synced', offline: 'offline — will retry on the next change' }[st.cloudStatus];
+  return (
+    <div style={{ marginTop: 22 }}>
+      <span className="mono9">cloud sync</span>
+      {st.cloudCode ? (
+        <>
+          <p className="mono10 ed-rule" style={{ marginTop: 6 }}>
+            this device is linked. your sync code is your password — enter it on another device to pick up the same log.
+          </p>
+          <p className="mono10" style={{ margin: '8px 0', wordBreak: 'break-all' }}>
+            code: <span style={{ background: C.mint, padding: '1px 5px' }}>{st.cloudCode}</span> &#183; {statusText}
+          </p>
+          <div className="ed-foot" style={{ marginTop: 8 }}>
+            <button type="button" className="mtog" onClick={() => void st.syncNow()}>sync now</button>
+            <button type="button" className="mtog" onClick={() => { if (confirm('Stop syncing this device? The cloud copy stays; this device just stops updating it.')) void st.unlinkCloud(); }}>unlink</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="mono10 ed-rule" style={{ marginTop: 6 }}>
+            the log lives on this device only. link it to a sync code and it follows you — same system as the other apps.
+          </p>
+          <label className="ed-field" style={{ marginTop: 8 }}>
+            <span className="mono9">have a code already?</span>
+            <input value={code} placeholder="myologia-…" onChange={(e) => setCode(e.target.value)} autoCapitalize="none" autoCorrect="off" />
+          </label>
+          {bad && <p className="mono10" style={{ color: '#B33' }}>that code doesn&#8217;t parse — 6–64 letters, numbers and dashes.</p>}
+          <div className="ed-foot" style={{ marginTop: 8 }}>
+            <button type="button" className="mtog" onClick={() => void link(code || undefined)} disabled={!code.trim()}>link this code</button>
+            <button type="button" className="mtog" onClick={() => void link()}>start syncing (new code)</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Edit() {
   const st = useStore();
   const { days, lifts } = st;
@@ -251,6 +297,8 @@ export default function Edit() {
         <button type="button" className="mtog" onClick={removeDay} disabled={days.length < 2}>remove day: {day.name}</button>
         <button type="button" className="mtog" onClick={reset}>reset to the sheet</button>
       </div>
+
+      <CloudSync />
 
       <div style={{ marginTop: 16 }}><Nav current="edit" /></div>
     </div>
