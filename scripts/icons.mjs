@@ -13,15 +13,17 @@ const srv = http.createServer((q, r) => fs.createReadStream(path.join(pub, decod
 await new Promise((ok) => srv.on('listening', ok));
 const base = `http://localhost:${srv.address().port}/`;
 const u = (f) => base + f;
-const FIELD = process.env.FIELD ?? '#C9B5F0', TINT = process.env.TINT ?? '#DCEE5A', OUT = process.env.OUT ?? path.join(pub, 'icons');
+const FIELD = process.env.FIELD ?? '#C9B5F0', OUT = process.env.OUT ?? path.join(pub, 'icons');
+// every muscle on plate I gets a colour; the chest keeps the loud one. TINTS='pec:#..,delt:#..' overrides
+const TINTS = Object.fromEntries((process.env.TINTS ?? 'pec:#DCEE5A,delt:#F4A186,tri:#F0F7DC,abs:#F4A186,obl:#A9E0D6').split(',').map((t) => t.split(':')));
 
 // crop of plate I (896x1200): the head thrown back, down to the top of the abdomen
 const page = (size, crop) => `<!doctype html><style>
   html,body{margin:0} #i{position:relative;width:${size}px;height:${size}px;overflow:hidden;background:${FIELD}}
   #i>*{position:absolute;left:0;top:0;width:${896 * (size / crop.s)}px;height:${1200 * (size / crop.s)}px;translate:${-crop.x * (size / crop.s)}px ${-crop.y * (size / crop.s)}px}
-  .mk{background:${TINT};-webkit-mask:url(${u('masks/pl1-pec.png')}) 0 0/100% 100% no-repeat}
+  .mk{-webkit-mask-size:100% 100%;-webkit-mask-repeat:no-repeat}
   img{mix-blend-mode:multiply;filter:grayscale(1) contrast(1.5) brightness(1.02)}
-</style><div id=i><span class=mk></span><img src="${u('plates/pl1-anterior.jpg')}"></div>`;
+</style><div id=i>${Object.entries(TINTS).map(([k, c]) => `<span class=mk style="background:${c};-webkit-mask-image:url(${u(`masks/pl1-${k}.png`)})"></span>`).join('')}<img src="${u('plates/pl1-anterior.jpg')}"></div>`;
 
 const tight = { x: 198, y: 196, s: 500 };
 const safe = { x: 108, y: 106, s: 680 }; // maskable: the same picture inside the middle 74%
