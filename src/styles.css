@@ -50,7 +50,16 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
   background-size: 5px 100%, 10px 100%; background-repeat: no-repeat; }
 
 /* leader line + tag */
-.callout { pointer-events: none; animation: tintIn .25s steps(3) .55s both; }
+/* waits for the plate to finish panning, then: ring stamps, line draws out, tag unrolls */
+.callout { pointer-events: none; }
+.co-ring { animation: stamp .24s steps(3) .55s both; }
+.co-line { stroke-dasharray: 1; animation: draw .3s steps(6) .7s both; }
+@keyframes draw { from { stroke-dashoffset: 1 } to { stroke-dashoffset: 0 } }
+.callout-tag { animation: card .2s steps(4) .98s both; }
+/* a colour going down slightly out of register, then the press finds it */
+@keyframes register { 0% { translate: 7px -5px; opacity: 0 } 1% { translate: 7px -5px; opacity: 1 } 34% { translate: -4px 3px } 67% { translate: 2px -1px } 100% { translate: 0 0 } }
+.mk.on { animation: register .42s steps(1) both; }
+@keyframes tock { to { rotate: 360deg } }
 .callout svg { position: absolute; inset: 0; display: block; }
 .callout-tag { position: absolute; display: flex; align-items: stretch; max-width: 60%; background: var(--ink); color: var(--lime); }
 .callout-tag b { display: grid; place-items: center; min-width: 20px; padding: 0 4px; font: italic 400 15px/1 var(--serif); color: var(--ink); }
@@ -60,7 +69,7 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 /* the scan is knocked back to line and printed onto whatever field sits behind it */
 .pimg.ink { mix-blend-mode: multiply; filter: grayscale(1) contrast(1.28) brightness(1.05); }
 .pimg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transition: object-position .6s steps(6); }
-.mk { position: absolute; inset: 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; mix-blend-mode: multiply;
+.mk { position: absolute; inset: 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   transition: opacity .3s steps(3), -webkit-mask-position .6s steps(6), mask-position .6s steps(6); }
 
 /* ---------- motion ---------- */
@@ -136,7 +145,7 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 .w-title { position: relative; flex-grow: 1; min-width: 0; }
 .w-title h1 { position: relative; margin: 0; font-family: var(--serif); font-weight: 400; font-size: 42px; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; }
 .w-day { min-height: 44px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 3px; padding: 0; border: 0; background: none; }
-.w-fig { margin: 0 -16px; position: relative; flex: 1 1 0; min-height: 160px; overflow: hidden; background: var(--lime); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+.w-fig { margin: 0 -16px; position: relative; flex: 1 1 0; min-height: 160px; overflow: hidden; background: var(--lime); transition: background-color .3s steps(3); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
 .w-fig figcaption { position: absolute; left: 16px; bottom: 10px; right: 16px; display: flex; flex-wrap: wrap; gap: 3px; }
 .w-tabs { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; flex-shrink: 0; }
 .w-tabs li { flex: 1 1 0; min-width: 0; }
@@ -151,7 +160,7 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 .stepper { display: flex; align-items: stretch; border: 1px solid var(--ink); }
 .stepper button { width: 44px; min-height: 44px; border: 0; background: #fff; font-family: var(--mono); font-size: 18px; }
 .stepper label { min-width: 96px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 6px; }
-.stepper input { width: 3.6ch; min-width: 0; border: 0; background: transparent; padding: 0; text-align: right; font-family: var(--sans); font-stretch: 125%; font-weight: 800; font-size: 21px; letter-spacing: -0.02em; color: var(--ink); field-sizing: content; }
+.stepper input { width: 4.7ch; min-width: 0; border: 0; background: transparent; padding: 0; text-align: right; font-family: var(--sans); font-stretch: 125%; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; color: var(--ink); field-sizing: content; }
 .stepper input::placeholder { color: var(--ink); opacity: 1; }
 .stepper input:focus { outline: none; }
 .stepper label:focus-within { outline: 2px solid var(--peri); outline-offset: -2px; }
@@ -186,7 +195,8 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 .hero { position: relative; height: 560px; background: var(--lav); overflow: hidden; transition: background-color .4s steps(4); }
 .moon-ring { position: absolute; left: 50%; top: 36px; width: 348px; height: 348px; margin-left: -174px; border-radius: 50%; pointer-events: none;
   background: repeating-conic-gradient(var(--ink) 0 0.5deg, transparent 0.5deg 5deg);
-  -webkit-mask: radial-gradient(circle, transparent 167px, #000 167.5px); mask: radial-gradient(circle, transparent 167px, #000 167.5px); }
+  -webkit-mask: radial-gradient(circle, transparent 167px, #000 167.5px); mask: radial-gradient(circle, transparent 167px, #000 167.5px);
+  animation: tock 120s steps(144) infinite; }
 .hero .reg { position: absolute; }
 .hero .cyc { background: var(--coral); }
 .hero-top { position: absolute; left: 0; right: 0; top: 14px; display: flex; justify-content: center; gap: 4px; }

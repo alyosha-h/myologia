@@ -17,6 +17,13 @@ export const C = {
 /** per-lift tint cycle, index = lift position in the day */
 export const PAL = [C.coral, C.lav, C.chart, C.mint, C.yellow, C.dlav];
 
+/** lift colours that still read on a given field: drop the field's own colour and its near neighbour */
+const CLASH: Record<string, string[]> = {
+  [C.lav]: [C.lav, C.dlav], [C.dlav]: [C.lav, C.dlav], [C.chart]: [C.chart, C.yellow], [C.yellow]: [C.chart, C.yellow],
+  [C.coral]: [C.coral], [C.mint]: [C.mint],
+};
+export const palFor = (field: string) => PAL.filter((c) => !(CLASH[field] ?? []).includes(c));
+
 export type PlateId = 'I' | 'II' | 'III' | 'IV';
 export const PLATE_IDS: PlateId[] = ['I', 'II', 'III', 'IV'];
 

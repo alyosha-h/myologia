@@ -76,13 +76,11 @@ export function PlateLayers({ plate, tints, pos = '50% 50%', fit = 'cover', imgC
   return (
     <>
       <span aria-hidden="true" className="layer" style={{ background: field }} />
-      <img className={`pimg ink ${imgCls}`} src={asset(P.file)} alt={alt ?? P.alt} draggable={false}
-        style={{ objectFit: fit, objectPosition: pos, ...imgStyle }} />
       {P.masks.map((k) => {
         const t = tints[k];
         const url = `url(${asset(MUSCLES[k].mask)})`;
         return (
-          <span key={k} aria-hidden="true" className={`mk ${t?.cls ?? ''}`}
+          <span key={k} aria-hidden="true" className={`mk ${t ? t.cls ?? 'on' : ''}`}
             style={{
               background: t?.color ?? 'transparent', opacity: t ? t.op : 0,
               WebkitMaskImage: url, maskImage: url,
@@ -92,6 +90,9 @@ export function PlateLayers({ plate, tints, pos = '50% 50%', fit = 'cover', imgC
             }} />
         );
       })}
+      {/* flat colour first, then the line work printed over it: tints never multiply against the field, so they never muddy */}
+      <img className={`pimg ink ${imgCls}`} src={asset(P.file)} alt={alt ?? P.alt} draggable={false}
+        style={{ objectFit: fit, objectPosition: pos, ...imgStyle }} />
     </>
   );
 }
@@ -133,15 +134,32 @@ export function Callout({ muscle, fw, fh, pos, color, letter, label }: {
   return (
     <div aria-hidden="true" className="callout layer">
       <svg width={fw} height={fh} viewBox={`0 0 ${fw} ${fh}`}>
-        <polyline points={`${a.x},${a.y} ${ex},${ly} ${fw - 16},${ly}`} fill="none" stroke={C.ink} strokeWidth="1" />
-        <circle cx={a.x} cy={a.y} r="5.5" fill={color} stroke={C.ink} />
-        <circle cx={a.x} cy={a.y} r="1.5" fill={C.ink} />
+        <polyline className="co-line" pathLength={1} points={`${a.x},${a.y} ${ex},${ly} ${fw - 16},${ly}`} fill="none" stroke={C.ink} strokeWidth="1" />
+        <g className="co-ring" style={{ transformOrigin: `${a.x}px ${a.y}px` }}>
+          <circle cx={a.x} cy={a.y} r="5.5" fill={C.lime} stroke={C.ink} />
+          <circle cx={a.x} cy={a.y} r="1.5" fill={C.ink} />
+        </g>
       </svg>
       <span className="callout-tag" style={up ? { right: 16, bottom: fh - ly } : { right: 16, top: ly }}>
         <b style={{ background: color }}>{letter}</b><span>{label}</span>
       </span>
     </div>
   );
+}
+
+/** counts up to n in a few hard steps, like a counter settling */
+export function useCount(n: number, delay = 0, steps = 7) {
+  const still = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [v, setV] = useState(still ? n : 0);
+  useEffect(() => {
+    if (still) { setV(n); return; }
+    let i = 0, iv = 0;
+    const t = window.setTimeout(() => {
+      iv = window.setInterval(() => { i++; setV(Math.round((n * i) / steps)); if (i >= steps) clearInterval(iv); }, 55);
+    }, delay);
+    return () => { clearTimeout(t); clearInterval(iv); };
+  }, [n, delay, steps, still]);
+  return v;
 }
 
 export function useSize<T extends HTMLElement>() {

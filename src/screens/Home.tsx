@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { C, MUSCLES, PLATES, PLATE_IDS, asset, cap, plateOfDay, plateOfLift, word, OPENED, OPENING, type PlateId } from '../data';
 import { DOW, addDays, ddmm, fromIso, hasWork, iso, setsDoneIn, useStore, weekStart } from '../store';
-import { Barcode, Chip, Nav, PlateLayers, Rail, Reg, Wipe } from '../ui';
+import { Barcode, Chip, Nav, PlateLayers, Rail, Reg, useCount, Wipe } from '../ui';
 import type { Tint } from '../ui';
 
 const MOON: Record<PlateId, { pos: string; tints: [string, string][]; name: string; color: string }> = {
@@ -41,7 +41,7 @@ function Motto() {
       <button type="button" className={`hl ${out ? 'h-out' : ''}`} onClick={() => { advance(); start(); }}
         aria-label={`${h.t} ${h.a} ${h.b}, tap for another motto`}>
         <span style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
-          <span className="blk b1" style={{ backgroundImage: `linear-gradient(${C.coral},${C.coral})` }}><span className="txt">{h.t}</span></span>
+          <span className="blk b1" style={{ backgroundImage: `linear-gradient(${C.lime},${C.lime})` }}><span className="txt">{h.t}</span></span>
           <span className="blk b2" style={{ backgroundImage: `linear-gradient(${C.chart},${C.chart})` }}><span className="txt">{h.a}</span></span>
         </span>
         <span className="blk b3" style={{ marginLeft: h.pad, backgroundImage: `linear-gradient(${C.chart},${C.chart})` }}><span className="txt">{h.b}</span></span>
@@ -73,6 +73,7 @@ export default function Home() {
   const prose = cap(ordered.map((m) => MUSCLES[m].phrase).join(', ')) + '.';
   const spoken = `${word(dayLifts.length)} lifts, ${word(totalSets)} sets, ${word(plates.size)} plate${plates.size > 1 ? 's' : ''}`;
   const p2 = (v: number) => String(v).padStart(2, '0');
+  const cLifts = useCount(dayLifts.length, 900), cSets = useCount(doneSets > 0 ? doneSets : totalSets, 1000), cPlates = useCount(plates.size, 1100);
 
   const sealed = session.sealed;
   const started = doneSets > 0;
@@ -170,9 +171,9 @@ export default function Home() {
           {prose}
         </p>
         <p className="stats" aria-label={spoken}>
-          <span><b className="xb">{p2(dayLifts.length)}</b><em className="cn">lifts</em></span>
-          <span><b className="xb">{started ? <>{p2(doneSets)}<span style={{ opacity: 0.35 }}>/{totalSets}</span></> : p2(totalSets)}</b><em className="cn">{started ? 'sets done' : 'sets'}</em></span>
-          <span><b className="xb">{p2(plates.size)}</b><em className="cn">plate{plates.size > 1 ? 's' : ''}</em></span>
+          <span><b className="xb">{p2(cLifts)}</b><em className="cn">lifts</em></span>
+          <span><b className="xb">{started ? <>{p2(cSets)}<span style={{ opacity: 0.35 }}>/{totalSets}</span></> : p2(cSets)}</b><em className="cn">{started ? 'sets done' : 'sets'}</em></span>
+          <span><b className="xb">{p2(cPlates)}</b><em className="cn">plate{plates.size > 1 ? 's' : ''}</em></span>
         </p>
         <a href="#/plate" className="cta">
           <span className="cycbg cta-n">{todayPlate}</span>

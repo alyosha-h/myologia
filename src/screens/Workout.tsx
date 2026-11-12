@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { C, DAY_COLOR, MUSCLES, PAL, PLATES, kindOf, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
+import { C, DAY_COLOR, MUSCLES, PLATES, kindOf, palFor, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
 import { DOW, ddmm, fromIso, nextAfter, setsDoneIn, useStore } from '../store';
 import { Callout, Chip, LetterTile, Nav, PlateLayers, useSize, Wipe } from '../ui';
 import type { Tint } from '../ui';
@@ -48,7 +48,10 @@ export default function Workout() {
 
   const idx = Math.min(i, dayLifts.length - 1);
   const L = dayLifts[idx];
-  const col = PAL[idx % PAL.length];
+  // the figure is printed on the day's colour; lift colours are whatever still reads on it
+  const field = DAY_COLOR[kindOf(day)] ?? day.color;
+  const pal = palFor(field);
+  const col = pal[idx % pal.length];
   const prim = L.hit[0];
   const plate = plateOfLift(L);
 
@@ -80,7 +83,7 @@ export default function Workout() {
   const tabs = dayLifts.map((x, j) => {
     const n = setsDoneIn(session, x.id);
     got += Math.min(n, x.sets); total += x.sets;
-    return { x, j, n, cur: j === idx, full: n >= x.sets, c: PAL[j % PAL.length] };
+    return { x, j, n, cur: j === idx, full: n >= x.sets, c: pal[j % pal.length] };
   });
 
   const isLast = idx === dayLifts.length - 1;
@@ -103,19 +106,18 @@ export default function Workout() {
       <header className="w-head">
         <LetterTile letters={['P', 'l', plate]} label={`Plate ${plate}`} />
         <div className="w-title">
-          <span aria-hidden="true" style={{ position: 'absolute', left: 50, top: 6, width: 96, height: 34, background: DAY_COLOR[kindOf(day)] ?? day.color }} />
-          <span className="cyc jit" aria-hidden="true" style={{ position: 'absolute', left: 100, top: 0, width: 12, height: 14, mixBlendMode: 'multiply' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', left: 50, top: 6, width: 96, height: 34, background: field }} />
           <h1>{day.title}</h1>
         </div>
         <button type="button" className="w-day" onClick={cycleDay} aria-label={`Change day, now ${day.name}`}>
           <Chip>{DOW[d.getDay()]} {ddmm(d)}</Chip>
-          <Chip bg={C.coral} cls="flk">{day.name} &#8635;</Chip>
+          <Chip bg={C.ink} fg={C.lime}>{day.name} &#8635;</Chip>
         </button>
       </header>
 
-      <figure ref={figRef} className="w-fig">
+      <figure ref={figRef} className="w-fig" style={{ background: field }}>
         <div key={plate} className="iris layer">
-          <PlateLayers plate={plate} tints={tints} pos={pos} />
+          <PlateLayers plate={plate} tints={tints} pos={pos} field={field} />
         </div>
         <span aria-hidden="true" className="ticks" />
         <Callout key={L.id} muscle={prim} fw={fig.w} fh={fig.h} pos={pos} color={col} letter={String.fromCharCode(97 + idx)} label={MUSCLES[prim].short} />
@@ -209,7 +211,6 @@ export default function Workout() {
           style={{ background: isLast ? C.ink : C.chart, color: isLast ? C.lime : C.ink }}>
           <span className="w-go-l">{isLast ? (session.sealed ? 'Plate sealed' : 'Seal the plate') : `Next: ${dayLifts[idx + 1].name}`}</span>
           <span className="w-go-n">{got}/{total}</span>
-          <span className="hop" aria-hidden="true" />
         </button>
       </div>
 
