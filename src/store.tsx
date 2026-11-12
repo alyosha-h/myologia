@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { cloudChanged, cloudCode, linkCloud as linkCloudSave, pull as pullCloud, unlinkCloud as unlinkCloudSave, type CloudStatus, type SaveShape } from './cloud';
 import { clear, get, getAll, put, putMany } from './db';
 import { MUSCLES, PROGRAM_VERSION, normLift, seedProgram, type Day, type Lift, type Session } from './data';
 
@@ -62,6 +63,11 @@ interface Api extends Data {
   saveLift: (l: Lift) => void;
   saveDays: (days: Day[]) => void;
   resetProgram: () => Promise<void>;
+  cloudStatus: CloudStatus;
+  cloudCode: string | null;
+  linkCloud: (code?: string) => Promise<boolean>;
+  unlinkCloud: () => Promise<void>;
+  syncNow: () => Promise<void>;
 }
 
 const Ctx = createContext<Api | null>(null);
@@ -85,7 +91,20 @@ function useToday() {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Data>({ ready: false, lifts: {}, days: [], sessions: {} });
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>('off');
+  const [cloudCodeState, setCloudCodeState] = useState<string | null>(null);
   const today = useToday();
+
+  const adoptSave = useCallback((s: SaveShape) => {
+    const lifts = s.lifts.map(normLift);
+    const days = [...s.days].sort((a, b) => ((a as Day & { order?: number }).order ?? 0) - ((b as Day & { order?: number }).order ?? 0));
+    setData({
+      ready: true,
+      lifts: Object.fromEntries(lifts.map((l) => [l.id, l])),
+      days,
+      sessions: Object.fromEntries(s.sessions.map((x) => [x.id, x])),
+    });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -116,23 +135,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         sessions: Object.fromEntries(sessions.map((s) => [s.id, s])),
       });
       navigator.storage?.persist?.().catch(() => {});
+      const code = await cloudCode();
+      setCloudCodeState(code);
+      if (code) await pullCloud(adoptSave, setCloudStatus);
     })();
-  }, []);
+  }, [adoptSave]);
+
+  // coming back to the app: another device may have saved in the meantime
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible') void pullCloud(adoptSave, setCloudStatus); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [adoptSave]);
 
   const saveSession = useCallback((s: Session) => {
     setData((d) => ({ ...d, sessions: { ...d.sessions, [s.id]: s } }));
     put('sessions', s).catch((e) => console.error('save failed', e));
+    cloudChanged(setCloudStatus);
   }, []);
 
   const saveLift = useCallback((l: Lift) => {
     setData((d) => ({ ...d, lifts: { ...d.lifts, [l.id]: l } }));
     put('lifts', l).catch((e) => console.error('save failed', e));
+    cloudChanged(setCloudStatus);
   }, []);
 
   const saveDays = useCallback((days: Day[]) => {
     const ordered = days.map((d, i) => ({ ...d, order: i }));
     setData((d) => ({ ...d, days: ordered }));
     (async () => { await clear('days'); await putMany('days', ordered); })().catch((e) => console.error('save failed', e));
+    cloudChanged(setCloudStatus);
   }, []);
 
   const resetProgram = useCallback(async () => {
@@ -141,7 +173,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await putMany('days', seed.days);
     await putMany('lifts', seed.lifts);
     setData((d) => ({ ...d, days: seed.days, lifts: { ...d.lifts, ...Object.fromEntries(seed.lifts.map((l) => [l.id, l])) } }));
+    cloudChanged(setCloudStatus);
   }, []);
+
+  const linkCloud = useCallback(async (code?: string) => {
+    const c = await linkCloudSave(code, adoptSave, setCloudStatus);
+    if (c) setCloudCodeState(c);
+    return !!c;
+  }, [adoptSave]);
+
+  const unlinkCloud = useCallback(async () => {
+    await unlinkCloudSave(setCloudStatus);
+    setCloudCodeState(null);
+  }, []);
+
+  const syncNow = useCallback(async () => {
+    await pullCloud(adoptSave, setCloudStatus);
+  }, [adoptSave]);
 
   const api = useMemo<Api>(() => {
     const { days, sessions, lifts } = data;
@@ -213,8 +261,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { weight: w, why: 'hold', from: w };
     };
 
-    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber, suggest, saveLift, saveDays, resetProgram };
-  }, [data, today, saveSession, saveLift, saveDays, resetProgram]);
+    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber, suggest, saveLift, saveDays, resetProgram, cloudStatus, cloudCode: cloudCodeState, linkCloud, unlinkCloud, syncNow };
+  }, [data, today, saveSession, saveLift, saveDays, resetProgram, cloudStatus, cloudCodeState, linkCloud, unlinkCloud, syncNow]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
