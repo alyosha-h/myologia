@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { C, DAY_COLOR, MUSCLES, PLATES, kindOf, palFor, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
 import { DOW, ddmm, fromIso, nextAfter, setsDoneIn, useStore } from '../store';
-import { Callout, Chip, LetterTile, Nav, PlateLayers, useSize, Wipe } from '../ui';
+import { Callout, Chip, LetterTile, Nav, PlateLayers, transitionHint, useSize } from '../ui';
 import type { Tint } from '../ui';
 
 export default function Workout() {
@@ -89,7 +89,7 @@ export default function Workout() {
   const isLast = idx === dayLifts.length - 1;
   const advance = () => {
     if (!isLast) return setI(idx + 1);
-    if (!session.sealed) st.saveSession({ ...session, sealed: true });
+    if (!session.sealed) { st.saveSession({ ...session, sealed: true }); transitionHint.sealed = true; }
     location.hash = '#/week';
   };
   const d = fromIso(today);
@@ -101,7 +101,6 @@ export default function Workout() {
 
   return (
     <div className="screen-plate">
-      <Wipe colors={[C.lav, C.coral, C.chart, C.ink, C.yellow, C.mint]} chips={['Pl.', plate, 'opening']} />
 
       <header className="w-head">
         <LetterTile letters={['P', 'l', plate]} label={`Plate ${plate}`} />

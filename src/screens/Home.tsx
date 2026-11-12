@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { C, MUSCLES, PLATES, PLATE_IDS, asset, cap, plateOfDay, plateOfLift, word, OPENED, OPENING, type PlateId } from '../data';
 import { DOW, addDays, ddmm, fromIso, hasWork, iso, setsDoneIn, useStore, weekStart } from '../store';
-import { Barcode, Chip, Nav, PlateLayers, Rail, Reg, useCount, Wipe } from '../ui';
+import { Barcode, Chip, Nav, PlateLayers, Rail, Reg, useCount } from '../ui';
 import type { Tint } from '../ui';
 
 const MOON: Record<PlateId, { pos: string; tints: [string, string][]; name: string; color: string }> = {
@@ -105,7 +105,6 @@ export default function Home() {
 
   return (
     <div className="screen home">
-      <Wipe colors={[C.chart, C.lav, C.coral, C.ink, C.mint, C.yellow]} chips={['Pl.', todayPlate, 'loading']} />
 
       <header className="masthead">
         <div aria-hidden="true" className="ltile" style={{ width: 44, height: 44, fontSize: 18, background: C.chart, color: C.ink }}>

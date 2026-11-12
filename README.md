@@ -15,7 +15,7 @@ routes (hash): `#/` home · `#/plate` today's workout · `#/week` survey · `#/m
 - `src/data.ts` — plates, muscles, palette, seed PPL program (from `plates.json`), crop math (`posFor`)
 - `src/db.ts` — indexeddb wrapper (lifts, days, sessions, meta)
 - `src/store.tsx` — in-memory state, write-through to idb; rotation, prev weight, weekly volume
-- `src/ui.tsx` — `PlateLayers` (img + multiply mask tints, shared position), chips, rails, wipe, nav
+- `src/ui.tsx` — `PlateLayers` (img + multiply mask tints, shared position), chips, rails, page turn, nav
 - `src/screens/*` — Home, Workout, Week, MaskTest
 - `public/sw.js` — offline: precaches shell + plates + masks, cache-first after
 
@@ -27,6 +27,7 @@ pastel print-ware over an 1851 atlas. the rules:
 - plates are never shown as scans. `PlateLayers` knocks the scan back to line and multiplies it onto a `field` colour, so the figure is printed on the page, riso-style. each plate owns a field (I coral, II lavender, III chartreuse, IV mint)
 - tints are flat colour laid *under* the line work, not multiplied over it, so they stay clean on any field. on the plate screen the field is the day's colour and `palFor(field)` picks lift colours that still read on it
 - motion: the home screen is the poster and may loop (ticking ring, flicker, drift). the plate screen only moves in answer to you: plate pans, tint lands out of register and snaps in, ring stamps, leader draws, tag unrolls. everything is stepped, nothing eases
+- page turns live in `App.tsx` (`Turn` in `ui.tsx`), not in the screens: slats in the destination's colours shut over the old screen, its name is stamped on, the screens swap underneath, the slats pull off the far side. later pages sweep one way, earlier pages the other. sealing a plate stamps SEALED and holds a beat longer
 - the atlas's leader lines are the hud: `Callout` drops a ring on the primary mover (`ANCHOR` in `data.ts`) and elbows out to a tag
 - furniture is print furniture: registration marks, tick rulers, barcodes, segmented meters. nothing decorative that doesn't look like it came off a press
 
