@@ -12,7 +12,7 @@
 }
 @media (display-mode: standalone) { :root { --sbar: 16px; } }
 * { box-sizing: border-box; }
-html { background: var(--lime); -webkit-text-size-adjust: 100%; }
+html { background: var(--ink); -webkit-text-size-adjust: 100%; }
 body { margin: 0; color: var(--ink); font-family: var(--body); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
 a { color: var(--peri); }
 button { font: inherit; color: inherit; touch-action: manipulation; cursor: pointer; }

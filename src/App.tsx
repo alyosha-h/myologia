@@ -12,13 +12,9 @@ const parse = (): Route => {
   return h === 'plate' || h === 'week' || h === 'masks' ? h : 'home';
 };
 
-// page ground + status-bar tint per screen
-const GROUND: Record<Route, [string, string]> = {
-  home: [C.ink, C.lime],
-  plate: [C.lime, C.lime],
-  week: [C.lav, C.lav],
-  masks: [C.lime, C.lime],
-};
+// colour at the top of each screen. ios standalone tints its status-bar blur band
+// (and the overscroll area) from the root background, so the root has to match the top.
+const TOP: Record<Route, string> = { home: C.ink, plate: C.lime, week: C.lav, masks: C.lime };
 
 export default function App() {
   const [route, setRoute] = useState<Route>(parse);
@@ -31,9 +27,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const [top, ground] = GROUND[route];
+    const top = TOP[route];
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', top);
-    document.documentElement.style.background = ground;
+    document.documentElement.style.background = top;
     document.documentElement.dataset.route = route;
   }, [route]);
 
