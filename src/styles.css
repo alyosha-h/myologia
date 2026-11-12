@@ -107,8 +107,8 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 
 /* ---------- workout (no scroll) ---------- */
 .screen-plate {
-  position: fixed; inset: 0; margin: 0 auto; max-width: 440px; overflow: hidden;
-  padding: max(var(--st), 14px) 16px max(var(--sb), 12px);
+  position: fixed; top: 0; left: 0; right: 0; height: var(--app-h, 100%); margin: 0 auto; max-width: 440px; overflow: hidden;
+  padding: calc(var(--st) + 10px) 16px max(var(--sb), 12px);
   background: var(--lime); display: flex; flex-direction: column; gap: 8px;
 }
 .w-head { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }

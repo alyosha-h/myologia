@@ -17,6 +17,17 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
+// ios standalone (viewport-fit=cover) reports a viewport that is short by the status-bar inset,
+// leaving a dead band under fixed, full-height screens. the app owns the whole screen there, so use it.
+const standalone = (navigator as Navigator & { standalone?: boolean }).standalone || matchMedia('(display-mode: standalone)').matches;
+const setAppH = () => {
+  const portrait = matchMedia('(orientation: portrait)').matches;
+  const full = standalone ? (portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width)) : 0;
+  document.documentElement.style.setProperty('--app-h', `${Math.max(innerHeight, full)}px`);
+};
+setAppH();
+addEventListener('resize', setAppH);
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
