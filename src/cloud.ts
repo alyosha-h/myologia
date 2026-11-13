@@ -6,7 +6,7 @@
 // pulled when the app opens / returns to the foreground and pushed a few
 // seconds after real changes. Hourly checkpoints are kept server-side.
 import { clear, get, getAll, put, putMany } from './db';
-import { PROGRAM_VERSION, type Day, type Lift, type Session } from './data';
+import { PROGRAM_VERSION, type Core, type Day, type Lift, type Session } from './data';
 
 const VAULT = 'https://myologia-saves.alex-c-hartke.workers.dev';
 const CODE_RE = /^[A-Za-z0-9-]{6,64}$/;
@@ -20,6 +20,8 @@ export interface SaveShape {
   lifts: Lift[];
   days: Day[];
   sessions: Session[];
+  /** ab work. absent in saves from builds before it existed */
+  core?: Core;
 }
 
 interface CloudMeta {
@@ -53,23 +55,49 @@ export async function exportSave(): Promise<SaveShape> {
     getAll<Lift>('lifts'), getAll<Day>('days'), getAll<Session>('sessions'),
   ]);
   const prog = (await get<{ key: string; v: number }>('meta', 'program').catch(() => undefined))?.v ?? PROGRAM_VERSION;
-  return { app: 'myologia', v: 1, program: prog, lifts, days, sessions };
+  const core = await get<Core & { key: string }>('meta', 'core').catch(() => undefined);
+  const save: SaveShape = { app: 'myologia', v: 1, program: prog, lifts, days, sessions };
+  if (core) save.core = { perWeek: core.perWeek, lifts: core.lifts };
+  return save;
 }
 
-/** progress-bearing fingerprint: the lifts, the rotation, the log */
-export const fingerprint = (s: SaveShape) => JSON.stringify([s.lifts, s.days, s.sessions]);
+/** progress-bearing fingerprint: the lifts, the rotation, the log (and the ab quota, once there is one) */
+export const fingerprint = (s: SaveShape) =>
+  JSON.stringify(s.core ? [s.lifts, s.days, s.sessions, s.core] : [s.lifts, s.days, s.sessions]);
 
 const looksFresh = (s: SaveShape) =>
-  !s.sessions.some((x) => x.sealed || Object.values(x.entries).some((e) => e.setsDone.some(Boolean)));
+  !s.sessions.some((x) => x.sealed || [...Object.values(x.entries), ...Object.values(x.core ?? {})].some((e) => e.setsDone.some(Boolean)));
 
-export async function importSave(s: SaveShape): Promise<void> {
+/** replace this device's save with `s`. returns what was actually stored: a save from before ab work keeps this device's */
+export async function importSave(s: SaveShape): Promise<SaveShape> {
+  let out = s;
+  if (!s.core) {
+    const local = await exportSave();
+    if (local.core) {
+      const keep = local.lifts.filter((l) => local.core!.lifts.includes(l.id) && !s.lifts.some((x) => x.id === l.id));
+      out = { ...s, lifts: [...s.lifts, ...keep], core: local.core };
+    }
+  }
   await clear('lifts');
   await clear('days');
   await clear('sessions');
-  await putMany('lifts', s.lifts);
-  await putMany('days', s.days);
-  await putMany('sessions', s.sessions);
-  await put('meta', { key: 'program', v: s.program });
+  await putMany('lifts', out.lifts);
+  await putMany('days', out.days);
+  await putMany('sessions', out.sessions);
+  await put('meta', { key: 'program', v: out.program });
+  if (out.core) await put('meta', { key: 'core', ...out.core });
+  return out;
+}
+
+/**
+ * call after a local, deterministic migration. if this device was in sync just before it (`before` = its fingerprint then),
+ * it still is: the migration isn't a local edit, and shouldn't read as one against another device's newer save.
+ */
+export async function migrated(before: string): Promise<void> {
+  const m = await meta();
+  if (m.fp === undefined || m.fp !== before) return;
+  m.fp = fingerprint(await exportSave());
+  await saveMeta(m);
 }
 
 function parseSave(text: string): SaveShape | null {
@@ -157,13 +185,14 @@ export async function pull(onAdopt: AdoptFn, onStatus: StatusFn): Promise<void> 
     );
     if (!useCloud) { await push(onStatus); return; }
   }
-  await importSave(remote);
+  const stored = await importSave(remote);
   m.syncedAt = rec.savedAt;
   m.fp = fingerprint(remote);
   await saveMeta(m);
-  onAdopt(remote);
+  onAdopt(stored);
   onStatus('synced');
   status = 'synced';
+  if (stored !== remote) cloudChanged(onStatus); // kept this device's ab work: hand it back up
 }
 
 /** Call after every local save; writes a few seconds after the last real change. */

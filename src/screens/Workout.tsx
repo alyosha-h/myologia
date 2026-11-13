@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { C, DAY_COLOR, MUSCLES, PLATES, kindOf, palFor, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
-import { DOW, ddmm, fromIso, nextAfter, setsDoneIn, useStore } from '../store';
-import { Callout, Chip, LetterTile, Nav, PlateLayers, transitionHint, useSize } from '../ui';
+import { DOW, coreSetsDone, ddmm, fromIso, hasCore, hasWork, nextAfter, setsDoneIn, useStore, weekStart } from '../store';
+import { AbMeter, Callout, Chip, LetterTile, Nav, PlateLayers, openHint, transitionHint, useSize } from '../ui';
 import type { Tint } from '../ui';
 
 export default function Workout() {
@@ -10,15 +10,30 @@ export default function Workout() {
   const session = st.sessionFor(today);
   const day = st.dayById(session.dayId);
   const dayLifts = day.lifts.map((id) => lifts[id]).filter(Boolean);
+  // ab work rides after the day's lifts on every plate, rest days included
+  const coreLifts = st.core.lifts.map((id) => lifts[id]).filter(Boolean);
+  const all = [...dayLifts, ...coreLifts];
+  const nRot = dayLifts.length;
+  const abWeek = st.coreWeek(weekStart(fromIso(today)));
+  const abDue = coreLifts.length > 0 && !hasCore(session) && abWeek < st.core.perWeek;
 
-  // start on the first lift that isn't finished
-  const firstOpen = () => {
+  // start on the first lift that isn't finished; the ab work if asked for, or if it's all that's left and still owed
+  const firstOpen = (abs: boolean) => {
+    const k = coreLifts.findIndex((l) => coreSetsDone(session, l.id) < l.sets);
+    if (abs && coreLifts.length) return nRot + Math.max(k, 0);
     const j = dayLifts.findIndex((l) => setsDoneIn(session, l.id) < l.sets);
-    return j < 0 ? 0 : j;
+    if (j >= 0) return j;
+    return abDue ? nRot + Math.max(k, 0) : 0;
   };
-  const [i, setI] = useState(firstOpen);
+  const [i, setI] = useState(() => firstOpen(openHint.abs));
   const [last, setLast] = useState<string | null>(null);
-  useEffect(() => { setI(firstOpen()); /* eslint-disable-line */ }, [day.id]);
+  useEffect(() => { openHint.abs = false; }, []);
+  const shownDay = useRef(day.id);
+  useEffect(() => {
+    if (shownDay.current === day.id) return;
+    shownDay.current = day.id;
+    setI(firstOpen(false));
+  }, [day.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [figRef, fig] = useSize<HTMLElement>();
 
@@ -27,7 +42,7 @@ export default function Workout() {
     st.saveSession({ ...session, dayId: st.days[(k + 1) % st.days.length].id });
   };
 
-  if (!dayLifts.length) {
+  if (!all.length) {
     return (
       <div className="screen-plate">
         <header className="w-head">
@@ -46,8 +61,11 @@ export default function Workout() {
     );
   }
 
-  const idx = Math.min(i, dayLifts.length - 1);
-  const L = dayLifts[idx];
+  const idx = Math.min(i, all.length - 1);
+  const L = all[idx];
+  const isCore = idx >= nRot;
+  const ak = idx - nRot; // position among the ab lifts
+  const abLabel = (j: number) => (coreLifts.length > 1 ? <>Ab<sup>{j + 1}</sup></> : <>Ab</>);
   // the figure is printed on the day's colour; lift colours are whatever still reads on it
   const field = DAY_COLOR[kindOf(day)] ?? day.color;
   const pal = palFor(field);
@@ -61,13 +79,16 @@ export default function Workout() {
   L.hit.forEach((k, j) => { if (MUSCLES[k].plate === plate) tints[k] = { color: col, op: j === 0 ? 1 : 0.45 }; });
   const chips = L.hit.filter((k) => MUSCLES[k].plate === plate);
 
-  const entry: Entry = session.entries[L.id] ?? { weight: null, setsDone: Array(L.sets).fill(false) };
+  const bucket = (isCore ? session.core : session.entries) ?? {};
+  const entry: Entry = bucket[L.id] ?? { weight: null, setsDone: Array(L.sets).fill(false) };
   const setsDone = Array.from({ length: L.sets }, (_, s) => !!entry.setsDone[s]);
   const sug = st.suggest(L.id, today);
   const allDone = setsDone.every(Boolean);
   const reps = entry.reps ?? L.repMax;
 
-  const write = (e: Entry) => st.saveSession({ ...session, entries: { ...session.entries, [L.id]: e } });
+  const write = (e: Entry) => st.saveSession(isCore
+    ? { ...session, core: { ...session.core, [L.id]: e } }
+    : { ...session, entries: { ...session.entries, [L.id]: e } });
   const setWeight = (w: number | null) => write({ ...entry, setsDone, weight: w == null ? null : Math.max(0, w) });
   const setReps = (r: number) => write({ ...entry, setsDone, reps: Math.max(0, Math.min(99, r)) });
   const toggle = (s: number) => {
@@ -79,19 +100,26 @@ export default function Workout() {
     navigator.vibrate?.(8);
   };
 
-  let got = 0, total = 0;
-  const tabs = dayLifts.map((x, j) => {
-    const n = setsDoneIn(session, x.id);
-    got += Math.min(n, x.sets); total += x.sets;
-    return { x, j, n, cur: j === idx, full: n >= x.sets, c: pal[j % pal.length] };
+  let got = 0, total = 0, abGot = 0, abTotal = 0;
+  const tabs = all.map((x, j) => {
+    const core = j >= nRot;
+    const n = core ? coreSetsDone(session, x.id) : setsDoneIn(session, x.id);
+    if (core) { abGot += Math.min(n, x.sets); abTotal += x.sets; } else { got += Math.min(n, x.sets); total += x.sets; }
+    return { x, j, n, core, cur: j === idx, full: n >= x.sets, c: pal[j % pal.length] };
   });
 
-  const isLast = idx === dayLifts.length - 1;
+  // the day's last lift hands on to the ab work while the week still owes it; the last ab lift closes the plate.
+  // ab work alone (a rest day) files nothing: sealing would count the day as a turn of the rotation
+  const toAbs = !isCore && idx === nRot - 1 && abDue;
+  const closes = isCore ? ak === coreLifts.length - 1 : idx === nRot - 1 && !abDue;
+  const worked = hasWork(session);
   const advance = () => {
-    if (!isLast) return setI(idx + 1);
-    if (!session.sealed) { st.saveSession({ ...session, sealed: true }); transitionHint.sealed = true; }
+    if (!closes) return setI(idx + 1);
+    if (worked && !session.sealed) { st.saveSession({ ...session, sealed: true }); transitionHint.sealed = true; }
     location.hash = '#/week';
   };
+  const goLabel = !closes ? `Next: ${all[idx + 1].name}`
+    : session.sealed ? 'Plate sealed' : worked || !isCore ? 'Seal the plate' : 'Note the abdomen';
   const d = fromIso(today);
   const w = entry.weight ?? sug.weight;
   const next = w != null ? nextAfter(L, w, { setsDone, reps }) : null;
@@ -119,7 +147,7 @@ export default function Workout() {
           <PlateLayers plate={plate} tints={tints} pos={pos} field={field} />
         </div>
         <span aria-hidden="true" className="ticks" />
-        <Callout key={L.id} muscle={prim} fw={fig.w} fh={fig.h} pos={pos} color={col} letter={String.fromCharCode(97 + idx)} label={MUSCLES[prim].short} />
+        <Callout key={L.id} muscle={prim} fw={fig.w} fh={fig.h} pos={pos} color={col} letter={isCore ? 'ab' : String.fromCharCode(97 + idx)} label={MUSCLES[prim].short} />
         <figcaption>
           <Chip>Fig.</Chip><Chip bg={C.mint}>{PLATES[plate].view}</Chip>
           {chips.slice(1).map((k) => <Chip key={k} bg={C.white}><span aria-hidden="true" style={{ display: 'inline-block', width: 7, height: 7, marginRight: 5, background: col, opacity: 0.6 }} />{MUSCLES[k].short}</Chip>)}
@@ -128,31 +156,38 @@ export default function Workout() {
       </figure>
 
       <div aria-hidden="true" className="w-meter">
-        {tabs.flatMap((t) => Array.from({ length: t.x.sets }, (_, s) => (
+        {tabs.filter((t) => !t.core).flatMap((t) => Array.from({ length: t.x.sets }, (_, s) => (
           <i key={`${t.x.id}-${s}`} style={{ background: session.entries[t.x.id]?.setsDone[s] ? t.c : 'transparent' }} />
         )))}
       </div>
 
       <ol aria-label="Lifts today" className="w-tabs">
-        {tabs.map((t) => (
+        {tabs.flatMap((t) => [
+          ...(t.j === nRot && nRot > 0 ? [<li key="gap" aria-hidden="true" className="w-tab-gap" />] : []),
           <li key={t.x.id}>
             <button type="button" onClick={() => setI(t.j)}
-              aria-label={`${t.x.name}, ${t.n} of ${t.x.sets} sets${t.cur ? ', current' : ''}`}
+              aria-label={`${t.core ? 'Ab work: ' : ''}${t.x.name}, ${t.n} of ${t.x.sets} sets${t.cur ? ', current' : ''}`}
               aria-current={t.cur ? 'step' : undefined}
-              style={{ border: t.cur ? `2px solid ${C.ink}` : `1px dashed ${C.ink}`, background: t.full ? t.c : t.cur ? C.white : 'transparent' }}>
-              <span className="w-tab-l">{String.fromCharCode(65 + t.j)}</span>
+              style={{ border: t.cur ? `2px solid ${C.ink}` : `1px ${t.core ? 'dotted' : 'dashed'} ${C.ink}`, background: t.full ? t.c : t.cur ? C.white : 'transparent' }}>
+              <span className="w-tab-l">{t.core ? abLabel(t.j - nRot) : String.fromCharCode(65 + t.j)}</span>
               <span className="w-tab-p">{Math.min(t.n, t.x.sets)}/{t.x.sets}</span>
             </button>
-          </li>
-        ))}
+          </li>,
+        ])}
       </ol>
 
       <section key={`${day.id}-${idx}`} className="w-card cardA" aria-live="polite">
         <div className="w-card-top">
           <h2>{L.name}</h2>
           <span className="w-card-meta">
-            <span className="mono10">{pad(idx + 1)} / {pad(dayLifts.length)}  &#183;  {String.fromCharCode(65 + idx)}</span>
-            <span style={{ display: 'flex', gap: 3 }}><Chip bg={col}>{schemeOf(L)}</Chip><Chip>Pl. {plate}</Chip></span>
+            {isCore ? (
+              <span className="mono10" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                wk <AbMeter n={abWeek} of={st.core.perWeek} w={7} h={9} /> {abWeek}/{st.core.perWeek}
+              </span>
+            ) : (
+              <span className="mono10">{pad(idx + 1)} / {pad(nRot)}  &#183;  {String.fromCharCode(65 + idx)}</span>
+            )}
+            <span style={{ display: 'flex', gap: 3 }}><Chip bg={col}>{schemeOf(L)}</Chip><Chip>{isCore ? 'Ab' : `Pl. ${plate}`}</Chip></span>
           </span>
         </div>
         <div className="w-card-mid">
@@ -207,9 +242,9 @@ export default function Workout() {
       <div className="w-next">
         <button type="button" className="w-prev" aria-label="Previous lift" onClick={() => idx > 0 && setI(idx - 1)}>&#8592;</button>
         <button type="button" className="w-go" onClick={advance}
-          style={{ background: isLast ? C.ink : C.chart, color: isLast ? C.lime : C.ink }}>
-          <span className="w-go-l">{isLast ? (session.sealed ? 'Plate sealed' : 'Seal the plate') : `Next: ${dayLifts[idx + 1].name}`}</span>
-          <span className="w-go-n">{got}/{total}</span>
+          style={{ background: closes ? C.ink : toAbs ? C.yellow : C.chart, color: closes ? C.lime : C.ink }}>
+          <span className="w-go-l">{goLabel}</span>
+          <span className="w-go-n">{isCore ? `${abGot}/${abTotal}` : `${got}/${total}`}</span>
         </button>
       </div>
 

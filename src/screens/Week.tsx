@@ -1,6 +1,6 @@
-import { C, MUSCLES, PLATES, PLATE_IDS, kindOf } from '../data';
-import { DOW, addDays, ddmm, fromIso, hasWork, iso, isoWeek, useStore, weekStart } from '../store';
-import { Chip, Nav, PlateLayers, Rail } from '../ui';
+import { C, MUSCLES, PLATES, PLATE_IDS, kindOf, word } from '../data';
+import { DOW, addDays, ddmm, fromIso, hasCore, hasWork, iso, isoWeek, useStore, weekStart } from '../store';
+import { AbMeter, Chip, Nav, PlateLayers, Rail } from '../ui';
 import type { Tint } from '../ui';
 
 const step = (n: number) => (n <= 0 ? null : n <= 5 ? C.yellow : n < 10 ? C.coral : C.peri);
@@ -27,10 +27,13 @@ export default function Week() {
     .map((m) => ({ m, n: vol[m.key] }))
     .sort((a, b) => b.n - a.n);
 
+  const abWeek = st.coreWeek(mon), abOf = st.core.perWeek;
   const neglected = rows.filter((r) => r.n === 0);
-  const coda = neglected.length === 0
-    ? 'Every muscle accounted for. The plate is full.'
-    : `The ${PLAIN[(neglected.find((r) => r.m.key === 'abs') ?? neglected[neglected.length - 1]).m.key]}, as is customary, remains unexamined.`;
+  const coda = abOf > 0 && abWeek >= abOf
+    ? `The abdomen, against all custom, examined ${word(abWeek)} times.`
+    : neglected.length === 0
+      ? 'Every muscle accounted for. The plate is full.'
+      : `The ${PLAIN[(neglected.find((r) => r.m.key === 'abs') ?? neglected[neglected.length - 1]).m.key]}, as is customary, remains unexamined.`;
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const date = iso(addDays(mon, i));
@@ -38,7 +41,7 @@ export default function Week() {
     const t = date === st.today;
     const kind = s && hasWork(s) ? st.dayById(s.dayId).name.toUpperCase() : date < st.today ? 'REST' : '—';
     const kbg = s && hasWork(s) ? KIND[kindOf(st.dayById(s.dayId))] ?? C.chart : C.white;
-    return { date, dow: DOW[addDays(mon, i).getDay()].toUpperCase(), kind, kbg, bg: t ? C.ink : C.white, fg: t ? C.lime : C.ink };
+    return { date, dow: DOW[addDays(mon, i).getDay()].toUpperCase(), kind, kbg, ab: hasCore(s), bg: t ? C.ink : C.white, fg: t ? C.lime : C.ink };
   });
 
   return (
@@ -76,9 +79,18 @@ export default function Week() {
           <li key={d.date}>
             <span style={{ background: d.bg, color: d.fg }}>{d.dow}</span>
             <span style={{ background: d.kbg }}>{d.kind}</span>
+            {st.core.lifts.length > 0 && <span style={{ background: d.ab ? C.yellow : 'transparent' }}>{d.ab ? 'AB' : '\u00a0'}</span>}
           </li>
         ))}
       </ol>
+      {st.core.lifts.length > 0 && (
+        <div className="wk-ab" aria-label={`Ab work on ${abWeek} of ${abOf} days`}>
+          <Chip bg={C.yellow}>Abdomen</Chip>
+          <AbMeter n={abWeek} of={abOf} w={22} h={16} fill={C.yellow} />
+          <b className="xb">{String(abWeek).padStart(2, '0')}<span style={{ opacity: 0.35 }}>/{String(abOf).padStart(2, '0')}</span></b>
+          <span className="mono10" style={{ color: '#4A3A60' }}>{abWeek >= abOf ? 'quota met' : `${word(abOf - abWeek)} to go`}</span>
+        </div>
+      )}
 
       <figure className="wk-grid enter">
         {PLATE_IDS.map((p, i) => (
