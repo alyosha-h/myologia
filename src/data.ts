@@ -112,6 +112,8 @@ export interface Lift {
   amrap?: boolean;
   /** bar weight for plate math, lb. null = not a barbell lift (no plate math). undefined = default by lift id */
   bar?: number | null;
+  /** weight is per dumbbell. undefined = default by lift id */
+  perHand?: boolean;
   note?: string;
   hit: string[]; // muscle keys, primary first
   /** legacy, pre-v2 lifts only */
@@ -184,6 +186,25 @@ export function loadFor(w: number, bar: number, plates: number[]): { side: numbe
   }
   return { side, short: Math.round(rest * 1000) / 1000 };
 }
+
+/* ---------- dumbbells ---------- */
+
+/** the sheet's dumbbell lifts, logged per hand */
+const DUMBBELL = new Set(['hammer-curl', 'dumbbell-curl', 'dumbbell-row', 'dumbbell-press', 'incline-dumbbell-press', 'lateral-raise']);
+export const perHandOf = (l: Lift): boolean => (l.perHand !== undefined ? l.perHand : DUMBBELL.has(l.id));
+
+const DB_KEY = 'myologia.dbstep';
+/** how far apart the dumbbells on the rack are, lb. the rack is this gym's, so it stays on this device */
+export function dbStep(): number {
+  try { const v = Number(localStorage.getItem(DB_KEY)); if (v === 2.5 || v === 5) return v; } catch { /* ignore */ }
+  return 5;
+}
+export function saveDbStep(v: number) { try { localStorage.setItem(DB_KEY, String(v)); } catch { /* ignore */ } }
+/** weight step for a lift: the rack's spacing for dumbbells, 2.5 for everything else */
+export const stepOf = (l: Lift) => (perHandOf(l) ? dbStep() : 2.5);
+/** a weight that's actually on the rack: up for an increase, down for a deload */
+export const snap = (w: number, step: number, dir: 'up' | 'down') =>
+  (dir === 'up' ? Math.ceil(w / step - 1e-9) : Math.floor(w / step + 1e-9)) * step;
 
 const PLATES_KEY = 'myologia.plates';
 /** plates on hand are this gym's, so they stay on this device */

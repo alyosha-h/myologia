@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { cloudChanged, cloudCode, exportSave, fingerprint, linkCloud as linkCloudSave, migrated, pull as pullCloud, unlinkCloud as unlinkCloudSave, type CloudStatus, type SaveShape } from './cloud';
 import { clear, get, getAll, put, putMany } from './db';
-import { MUSCLES, PROGRAM_VERSION, normLift, seedCore, seedProgram, type Core, type Day, type Entry, type Lift, type Session } from './data';
+import { MUSCLES, PROGRAM_VERSION, normLift, snap, stepOf, seedCore, seedProgram, type Core, type Day, type Entry, type Lift, type Session } from './data';
 
 /* ---------- dates (local, not UTC) ---------- */
 
@@ -50,7 +50,7 @@ export const earned = (l: Lift, e: { setsDone: boolean[]; reps?: number | null }
 
 /** next weight after a session at `w` with entry `e` */
 export const nextAfter = (l: Lift, w: number, e: { setsDone: boolean[]; reps?: number | null }) =>
-  earned(l, e) && l.inc > 0 ? w + l.inc : w;
+  earned(l, e) && l.inc > 0 ? snap(w + l.inc, stepOf(l), 'up') : w;
 
 interface Api extends Data {
   today: string;
@@ -287,10 +287,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       if (!hist.length) return l.start != null ? { weight: l.start, why: 'start', from: null } : { weight: null, why: 'none', from: null };
       const { w, e } = hist[0];
-      if (earned(l, e) && l.inc > 0) return { weight: w + l.inc, why: 'up', from: w };
+      if (earned(l, e) && l.inc > 0) return { weight: snap(w + l.inc, stepOf(l), 'up'), why: 'up', from: w };
       // three sessions in a row at the same weight without earning it: back off 10%
       if (hist.length === 3 && l.inc > 0 && hist.every((h) => h.w === w && !earned(l, h.e)))
-        return { weight: Math.floor((w * 0.9) / 2.5) * 2.5, why: 'deload', from: w };
+        return { weight: snap(w * 0.9, stepOf(l), 'down'), why: 'deload', from: w };
       return { weight: w, why: 'hold', from: w };
     };
 

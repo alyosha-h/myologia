@@ -355,3 +355,7 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 .w-load { display: flex; align-items: center; gap: 3px; min-height: 26px; }
 .w-load .mono9:first-child { margin-right: 3px; }
 .w-plate { display: grid; place-items: center; min-width: 22px; padding: 0 3px; border: 1px solid var(--ink); font-family: var(--mono); font-size: 9px; line-height: 1; }
+
+/* a dumbbell: handle between two heads */
+.w-db { display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 2px; border: 1px solid var(--ink); font-family: var(--mono); font-size: 9px; line-height: 1; }
+.w-db i { width: 4px; height: 12px; background: var(--ink); }

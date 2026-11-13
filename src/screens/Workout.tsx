@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { C, DAY_COLOR, MUSCLES, PLATES, DISC_COLOR, barOf, kindOf, loadFor, platesOnHand, palFor, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
+import { C, DAY_COLOR, MUSCLES, PLATES, DISC_COLOR, barOf, perHandOf, snap, stepOf, kindOf, loadFor, platesOnHand, palFor, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
 import { DOW, coreSetsDone, ddmm, fromIso, hasCore, hasWork, nextAfter, setsDoneIn, useStore, weekStart } from '../store';
 import { AbMeter, Callout, Chip, LetterTile, Nav, PlateLayers, openHint, transitionHint, useSize } from '../ui';
 import type { Tint } from '../ui';
@@ -123,12 +123,16 @@ export default function Workout() {
   const d = fromIso(today);
   const w = entry.weight ?? sug.weight;
   const next = w != null ? nextAfter(L, w, { setsDone, reps }) : null;
-  const hint = sug.why === 'up' ? `\u2191 +${L.inc}, was ${sug.from}` : sug.why === 'deload' ? `deload, was ${sug.from}`
+  const hint = sug.why === 'up' ? `\u2191 +${(sug.weight ?? 0) - (sug.from ?? 0)}, was ${sug.from}` : sug.why === 'deload' ? `deload, was ${sug.from}`
     : sug.why === 'hold' ? `hold, last ${sug.from}` : sug.why === 'start' ? 'start weight' : L.note ?? 'bodyweight';
   const pad = (n: number) => (n < 10 ? '0' : '') + n;
-  const bar = barOf(L);
+  const each = perHandOf(L);
+  const step = stepOf(L);
+  const offRack = each && w != null && snap(w, step, 'down') !== w;
+  const bar = each ? null : barOf(L);
   const load = bar != null && w != null ? loadFor(w, bar, platesOnHand()) : null;
-  const loadLabel = bar == null || w == null ? '' : !load ? `under the ${bar} lb bar`
+  const loadLabel = each && w != null ? `${w} lb in each hand, ${w * 2} lb total${offRack ? `, not on a ${step} lb rack` : ''}`
+    : bar == null || w == null ? '' : !load ? `under the ${bar} lb bar`
     : !load.side.length ? `empty ${bar} lb bar` : `per side ${load.side.join(', ')} on a ${bar} lb bar${load.short > 0 ? `, ${load.short} lb short each side` : ''}`;
 
   return (
@@ -196,7 +200,7 @@ export default function Workout() {
         </div>
         <div className="w-card-mid">
           <div role="group" aria-label="Weight" className="stepper">
-            <button type="button" aria-label="Less weight" onClick={() => w != null && setWeight(w - 2.5)}>&#8722;</button>
+            <button type="button" aria-label="Less weight" onClick={() => w != null && setWeight(snap(w, step, 'up') - step)}>&#8722;</button>
             <label style={{ background: col }}>
               <input inputMode="decimal" aria-label="Weight in pounds" placeholder={sug.weight != null ? String(sug.weight) : '\u2014'}
                 value={entry.weight ?? ''}
@@ -207,9 +211,9 @@ export default function Workout() {
                   const n = Number(v);
                   if (Number.isFinite(n)) setWeight(n);
                 }} />
-              <span className="mono11">lb</span>
+              <span className="mono11">{each ? 'lb ea' : 'lb'}</span>
             </label>
-            <button type="button" aria-label="More weight" onClick={() => setWeight(w == null ? 45 : w + 2.5)}>+</button>
+            <button type="button" aria-label="More weight" onClick={() => setWeight(w == null ? (each ? 20 : 45) : snap(w, step, 'down') + step)}>+</button>
           </div>
           <span style={{ flexGrow: 1 }} />
           {allDone ? (
@@ -229,6 +233,16 @@ export default function Workout() {
           )}
         </div>
         <div className="w-load" aria-label={loadLabel || undefined}>
+          {each && w != null && (
+            <>
+              <span className="mono9" aria-hidden="true">per hand</span>
+              <span aria-hidden="true" className="w-db" style={{ background: col }}><i />{w}<i /></span>
+              <span aria-hidden="true" className="w-db" style={{ background: col }}><i />{w}<i /></span>
+              {offRack && <span className="mono9" aria-hidden="true" style={{ background: C.coral, padding: '1px 4px' }}>rack: {snap(w, step, 'down')} / {snap(w, step, 'up')}</span>}
+              <span style={{ flexGrow: 1 }} />
+              <span className="mono9" aria-hidden="true">{w * 2} total</span>
+            </>
+          )}
           {bar != null && w != null && (
             <>
               <span className="mono9" aria-hidden="true">per side</span>

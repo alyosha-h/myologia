@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C, DAY_COLOR, MUSCLES, DISC_COLOR, PLATE_IDS, PLATE_SIZES, PLATES, barOf, kindOf, platesOnHand, savePlatesOnHand, palFor, repsOf, schemeOf, slug, type Day, type Lift } from '../data';
+import { C, DAY_COLOR, MUSCLES, DISC_COLOR, dbStep, perHandOf, saveDbStep, PLATE_IDS, PLATE_SIZES, PLATES, barOf, kindOf, platesOnHand, savePlatesOnHand, palFor, repsOf, schemeOf, slug, type Day, type Lift } from '../data';
 import { useStore } from '../store';
 import { Chip, Nav } from '../ui';
 
@@ -55,20 +55,27 @@ function LiftForm({ lift, sharedWith, onSave }: { lift: Lift; sharedWith: string
           onChange={(v) => set({ repMax: v ?? 1, repMin: Math.min(lift.repMin, v ?? 1) })} />
       </div>
       <div className="ed-row">
-        <Num label="start weight" value={lift.start} step={2.5} nullable unit="lb" onChange={(v) => set({ start: v })} />
+        <Num label={perHandOf(lift) ? 'start weight, each' : 'start weight'} value={lift.start} step={perHandOf(lift) ? dbStep() : 2.5} nullable unit="lb" onChange={(v) => set({ start: v })} />
         <Num label="add when earned" value={lift.inc} step={2.5} max={50} unit="lb" onChange={(v) => set({ inc: v ?? 0 })} />
-        <Num label="bar" value={barOf(lift)} step={5} max={100} nullable base={45} unit="lb" onChange={(v) => set({ bar: v })} />
+        {!perHandOf(lift) && <Num label="bar" value={barOf(lift)} step={5} max={100} nullable base={45} unit="lb" onChange={(v) => set({ bar: v })} />}
       </div>
       <p className="mono10 ed-rule">
         {lift.inc > 0
           ? <>all {lift.sets} sets done and {lift.repMax} reps on the last set &#8594; +{lift.inc} lb next time. three misses at one weight &#8594; &#8722;10%.</>
           : <>no automatic increase. weight carries over from last time.</>}
-        {' '}{barOf(lift) != null ? <>plates per side are worked out on a {barOf(lift)} lb bar.</> : <>no bar, so no plate math (bar &#8212; for dumbbells, cables, machines).</>}
+        {' '}{perHandOf(lift) ? <>dumbbells: logged per hand; increases round up to the next dumbbell on the rack ({dbStep()} lb apart).</>
+          : barOf(lift) != null ? <>plates per side are worked out on a {barOf(lift)} lb bar.</> : <>no bar, so no plate math (bar &#8212; for dumbbells, cables, machines).</>}
       </p>
-      <button type="button" className="mtog" aria-pressed={!!lift.amrap} onClick={() => set({ amrap: !lift.amrap })}
-        style={{ alignSelf: 'flex-start', background: lift.amrap ? C.chart : 'transparent' }}>
-        last set amrap {lift.amrap ? '✓' : ''}
-      </button>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button type="button" className="mtog" aria-pressed={perHandOf(lift)} onClick={() => set({ perHand: !perHandOf(lift) })}
+          style={{ background: perHandOf(lift) ? C.mint : 'transparent' }}>
+          dumbbells, per hand {perHandOf(lift) ? '✓' : ''}
+        </button>
+        <button type="button" className="mtog" aria-pressed={!!lift.amrap} onClick={() => set({ amrap: !lift.amrap })}
+          style={{ background: lift.amrap ? C.chart : 'transparent' }}>
+          last set amrap {lift.amrap ? '✓' : ''}
+        </button>
+      </div>
       <label className="ed-field">
         <span className="mono9">primary muscle (picks the plate)</span>
         <select value={prim} onChange={(e) => set({ hit: [e.target.value, ...sec.filter((k) => k !== e.target.value)] })}>
@@ -107,12 +114,22 @@ function LiftForm({ lift, sharedWith, onSave }: { lift: Lift; sharedWith: string
 
 function PlatesOnHand() {
   const [on, setOn] = useState(platesOnHand);
+  const [rack, setRack] = useState(dbStep);
   const toggle = (p: number) => {
     const next = on.includes(p) ? on.filter((x) => x !== p) : [...on, p].sort((a, b) => b - a);
     setOn(next); savePlatesOnHand(next);
   };
   return (
     <div style={{ marginTop: 22 }}>
+      <span className="mono9">dumbbells on the rack go up in (this device)</span>
+      <div className="ed-chips" style={{ marginTop: 6, marginBottom: 14 }}>
+        {[2.5, 5].map((v) => (
+          <button key={v} type="button" className="mtog" aria-pressed={rack === v} onClick={() => { setRack(v); saveDbStep(v); }}
+            style={{ background: rack === v ? C.mint : 'transparent', minWidth: 52, borderWidth: rack === v ? 2 : 1, borderStyle: rack === v ? 'solid' : 'dashed' }}>
+            {v} lb
+          </button>
+        ))}
+      </div>
       <span className="mono9">plates on hand (lb, pairs, this device)</span>
       <div className="ed-chips" style={{ marginTop: 6 }}>
         {PLATE_SIZES.map((p) => {
