@@ -260,8 +260,7 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 .week .rail > span { background: var(--chart); font-size: 11px; }
 .wk-head { display: flex; justify-content: space-between; align-items: flex-start; }
 .wk-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-right: 26px; }
-.wk-title { position: relative; height: 150px; margin-top: 18px; }
-.wk-title h1 { position: absolute; left: 0; top: 0; margin: 0; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 64px; line-height: 1.12; }
+.wk-hl { margin: 18px 0 10px; }
 .wk-days { list-style: none; margin: 18px 26px 0 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
 .wk-days li { display: flex; flex-direction: column; gap: 2px; }
 .wk-days li span { font-family: var(--mono); font-size: 10px; padding: 3px 0; text-align: center; overflow: hidden; }
