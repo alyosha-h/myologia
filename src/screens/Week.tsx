@@ -25,11 +25,7 @@ export default function Week() {
 
   const abWeek = st.coreWeek(mon), abOf = st.core.perWeek;
   const neglected = rows.filter((r) => r.n === 0);
-  const coda = abOf > 0 && abWeek >= abOf
-    ? `The abdomen, against all custom, examined ${word(abWeek)} times.`
-    : neglected.length === 0
-      ? 'Every muscle accounted for. The plate is full.'
-      : null;
+  const coda = neglected.length === 0 ? 'Every muscle accounted for. The plate is full.' : null;
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const date = iso(addDays(mon, i));
