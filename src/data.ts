@@ -123,7 +123,12 @@ export interface Session {
   dayId: string;
   entries: Record<string, Entry>; // by liftId
   sealed: boolean;
+  /** ab work, by liftId. kept out of `entries` so it never counts as a rotation day */
+  core?: Record<string, Entry>;
 }
+
+/** ab work: its own lifts and a weekly quota, beside the rotation rather than in it. any ab set ticked counts the day */
+export interface Core { perWeek: number; lifts: string[] }
 
 export const repsOf = (l: Lift) => (l.repMin === l.repMax ? String(l.repMax) : `${l.repMin}–${l.repMax}`);
 export const schemeOf = (l: Lift) => `${l.sets}×${repsOf(l)}`;
@@ -187,6 +192,14 @@ export function seedProgram(): { lifts: Lift[]; days: Day[] } {
     day('legs-b', 'Legs B', 'The Legs.', ['squat', 'romanian-deadlift', 'barbell-hack-squat', 'calf-raise', 'slider-leg-curl']),
   ].map((d, i) => ({ ...d, order: i }));
   return { lifts, days };
+}
+
+export function seedCore(): { lifts: Lift[]; core: Core } {
+  const lifts = [
+    L('hanging-leg-raise', 'Hanging leg raise', 3, 10, 15, null, ['abs', 'obl'], { note: 'knees up. straighten the legs once 15 is easy' }),
+    L('cable-crunch', 'Cable crunch', 3, 10, 15, null, ['abs'], { inc: 5, note: 'rope, kneeling. round the spine, hips still' }),
+  ];
+  return { lifts, core: { perWeek: 4, lifts: lifts.map((l) => l.id) } };
 }
 
 export const plateOfLift = (l: Lift): PlateId => MUSCLES[l.hit[0]].plate;

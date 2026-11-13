@@ -25,6 +25,22 @@ export type Phase = 'cover' | 'hold' | 'reveal';
 /** set just before navigating, read once by the next page turn */
 export const transitionHint = { sealed: false };
 
+/** set just before navigating to the plate: open on the ab work instead of the first open lift */
+export const openHint = { abs: false };
+
+/** the ab quota as a segmented meter, one cell per session owed this week */
+export function AbMeter({ n, of, w = 12, h = 12, fill = C.ink, style }: {
+  n: number; of: number; w?: number; h?: number; fill?: string; style?: CSSProperties;
+}) {
+  return (
+    <span aria-hidden="true" className="abm" style={style}>
+      {Array.from({ length: Math.max(of, n) }, (_, i) => (
+        <i key={i} className={i >= of ? 'over' : ''} style={{ width: w, height: h, background: i < n ? fill : 'transparent' }} />
+      ))}
+    </span>
+  );
+}
+
 /**
  * the page turn. slats in the destination's colours shut over the old screen, its name is stamped on them,
  * the screens swap underneath, and the slats pull off the far side. `back` mirrors the direction.

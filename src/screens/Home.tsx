@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { C, MUSCLES, PLATES, PLATE_IDS, asset, cap, plateOfDay, plateOfLift, word, OPENED, OPENING, type PlateId } from '../data';
-import { DOW, addDays, ddmm, fromIso, hasWork, iso, setsDoneIn, useStore, weekStart } from '../store';
-import { Barcode, Chip, Nav, PlateLayers, Rail, Reg, useCount } from '../ui';
+import { DOW, addDays, ddmm, fromIso, hasCore, hasWork, iso, setsDoneIn, useStore, weekStart } from '../store';
+import { AbMeter, Barcode, Chip, Nav, PlateLayers, Rail, Reg, openHint, useCount } from '../ui';
 import type { Tint } from '../ui';
 
 const MOON: Record<PlateId, { pos: string; tints: [string, string][]; name: string; color: string }> = {
@@ -98,8 +98,9 @@ export default function Home() {
       const k = Math.round((fromIso(date).getTime() - d.getTime()) / 86400000);
       num = plateOfDay(future[k], lifts);
     }
-    return { date, dow: DOW[addDays(mon, i).getDay()].toUpperCase(), num, bg, border, t, fg: t ? C.lime : C.ink, delay: `${(0.9 + i * 0.07).toFixed(2)}s` };
+    return { date, dow: DOW[addDays(mon, i).getDay()].toUpperCase(), num, bg, border, t, fg: t ? C.lime : C.ink, ab: hasCore(s), delay: `${(0.9 + i * 0.07).toFixed(2)}s` };
   });
+  const abWeek = st.coreWeek(mon), abOf = st.core.perWeek;
 
   const n = st.sessionNumber(today);
 
@@ -211,11 +212,24 @@ export default function Home() {
         <ol className="strip7">
           {strip.map((x) => (
             <li key={x.date} className="rise" style={{ animationDelay: x.delay }}>
-              <span className={x.t ? 'today-pulse' : ''} style={{ background: x.bg, border: x.border, color: x.fg }}>{x.num}</span>
+              <span className={x.t ? 'today-pulse' : ''} style={{ background: x.bg, border: x.border, color: x.fg }}>
+                {x.ab && <b className="ab-tag" aria-label="ab work">ab</b>}{x.num}
+              </span>
               <span className="mono10" style={{ textAlign: 'center' }}>{x.dow}</span>
             </li>
           ))}
         </ol>
+        {st.core.lifts.length > 0 && (
+          <div className="ab-row" aria-label={`Ab work, ${abWeek} of ${abOf} this week`}>
+            <span className="mono10">ABDOMEN</span>
+            <AbMeter n={abWeek} of={abOf} w={18} h={14} fill={C.yellow} />
+            <b className="xb">{abWeek}/{abOf}</b>
+            <span style={{ flexGrow: 1 }} />
+            <a href="#/plate" className="mono11 link44" onClick={() => { openHint.abs = true; }}>
+              {hasCore(session) ? 'abs today \u2713' : abWeek >= abOf ? 'quota met \u2192' : 'log abs \u2192'}
+            </a>
+          </div>
+        )}
       </section>
 
       <section aria-label="Motto" className="coda">

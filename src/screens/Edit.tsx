@@ -4,6 +4,8 @@ import { useStore } from '../store';
 import { Chip, Nav } from '../ui';
 
 const PRIMARY_FOR: Record<string, string> = { Push: 'pec', Pull: 'lat', Legs: 'quad' };
+/** the ab work, edited like a day but kept out of the rotation */
+const CORE = 'core';
 
 /** − value + ; null shows as "—" */
 function Num({ label, value, step, min = 0, max = 999, onChange, nullable = false, unit }: {
@@ -151,10 +153,15 @@ export default function Edit() {
   const { days, lifts } = st;
   const [sel, setSel] = useState(() => st.sessionFor(st.today).dayId);
   const [open, setOpen] = useState<string | null>(null);
-  const day = days.find((d) => d.id === sel) ?? days[0];
+  const isCore = sel === CORE;
+  const day: Day = isCore
+    ? { id: CORE, name: 'Abs', title: 'The Abdomen.', color: C.yellow, lifts: st.core.lifts }
+    : days.find((d) => d.id === sel) ?? days[0];
   const dayLifts = day.lifts.map((id) => lifts[id]).filter(Boolean);
 
-  const saveDay = (d: Day) => st.saveDays(days.map((x) => (x.id === d.id ? d : x)));
+  const saveDay = (d: Day) => (isCore
+    ? st.saveCore({ ...st.core, lifts: d.lifts })
+    : st.saveDays(days.map((x) => (x.id === d.id ? d : x))));
   const move = (j: number, by: number) => {
     const ls = day.lifts.slice();
     const k = j + by;
@@ -165,7 +172,9 @@ export default function Edit() {
   const remove = (id: string) => { saveDay({ ...day, lifts: day.lifts.filter((x) => x !== id) }); setOpen(null); };
   const addNew = () => {
     const id = `lift-${Date.now().toString(36)}`;
-    st.saveLift({ id, name: 'New lift', sets: 3, repMin: 8, repMax: 12, inc: 2.5, start: null, hit: [PRIMARY_FOR[kindOf(day)] ?? 'pec'] });
+    st.saveLift(isCore
+      ? { id, name: 'New ab lift', sets: 3, repMin: 10, repMax: 15, inc: 0, start: null, hit: ['abs'] }
+      : { id, name: 'New lift', sets: 3, repMin: 8, repMax: 12, inc: 2.5, start: null, hit: [PRIMARY_FOR[kindOf(day)] ?? 'pec'] });
     saveDay({ ...day, lifts: [...day.lifts, id] });
     setOpen(id);
   };
@@ -226,8 +235,25 @@ export default function Edit() {
           );
         })}
         <li><button type="button" onClick={addDay} aria-label="Add a day" style={{ background: 'transparent', borderStyle: 'dashed' }}>+</button></li>
+        <li className="ed-days-core">
+          <button type="button" aria-pressed={isCore} onClick={() => { setSel(CORE); setOpen(null); }}
+            aria-label={`Ab work, ${st.core.perWeek} times a week`}
+            style={{ background: isCore ? C.ink : C.yellow, color: isCore ? C.lime : C.ink, borderStyle: 'dotted' }}>
+            Abs &#215;{st.core.perWeek}
+          </button>
+        </li>
       </ol>
 
+      {isCore ? (
+        <div className="ed-row" style={{ marginTop: 10 }}>
+          <Num label="times a week" value={st.core.perWeek} step={1} min={1} max={7}
+            onChange={(v) => st.saveCore({ ...st.core, perWeek: v ?? 1 })} />
+          <p className="mono10 ed-rule" style={{ flex: '1 1 180px' }}>
+            beside the rotation, not in it. log it on the plate after the day&#8217;s lifts, or on a rest day.
+            any ab set ticked counts the day; the week runs monday to sunday.
+          </p>
+        </div>
+      ) : (
       <div className="ed-row" style={{ marginTop: 10 }}>
         <label className="ed-field" style={{ flex: 1 }}>
           <span className="mono9">day</span>
@@ -241,22 +267,25 @@ export default function Edit() {
           <input value={day.title} onChange={(e) => saveDay({ ...day, title: e.target.value })} />
         </label>
       </div>
+      )}
 
       <ol aria-label={`Lifts on ${day.name}`} className="ed-lifts">
         {dayLifts.map((l, j) => {
           const isOpen = open === l.id;
           const pal = palFor(DAY_COLOR[kindOf(day)] ?? day.color);
-          const col = pal[j % pal.length]; // same letter colours as the plate screen
-          const shared = days.filter((d) => d.id !== day.id && d.lifts.includes(l.id)).map((d) => d.name);
+          const col = isCore ? C.yellow : pal[j % pal.length]; // same letter colours as the plate screen
+          const shared = isCore ? [] : days.filter((d) => d.id !== day.id && d.lifts.includes(l.id)).map((d) => d.name);
           return (
             <li key={l.id} className="ed-lift" style={{ borderWidth: isOpen ? 2 : 1 }}>
               <div className="ed-lift-top">
                 <button type="button" className="ed-lift-h" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : l.id)}>
-                  <span className="ed-letter" style={{ background: col }}>{String.fromCharCode(65 + j)}</span>
+                  <span className="ed-letter" style={{ background: col }}>
+                    {isCore ? <span>Ab{dayLifts.length > 1 && <sup>{j + 1}</sup>}</span> : String.fromCharCode(65 + j)}
+                  </span>
                   <span className="ed-lift-name">
                     <span className="ed-name">{l.name || 'Untitled'}</span>
                     <span className="mono10">
-                      {schemeOf(l)}{l.amrap ? ' amrap' : ''} &#183; {l.start != null ? `${l.start} lb start` : 'bw'}{l.inc > 0 ? ` · +${l.inc}` : ''}
+                      {schemeOf(l)}{l.amrap ? ' amrap' : ''} &#183; {l.start != null ? `${l.start} lb start` : l.inc > 0 ? 'start open' : 'bw'}{l.inc > 0 ? ` · +${l.inc}` : ''}
                       {shared.length > 0 && <> &#183; <span style={{ background: C.mint, padding: '0 3px' }}>also {shared.join(', ')}</span></>}
                     </span>
                   </span>
@@ -278,23 +307,27 @@ export default function Edit() {
       </ol>
 
       <div className="ed-add">
-        <button type="button" onClick={addNew}>+ new lift</button>
-        <label>
-          <span className="sr">Add a lift from another day</span>
-          <select value="" onChange={(e) => addExisting(e.target.value)} disabled={!others.length}>
-            <option value="">+ from another day&#8230;</option>
-            {others.map((l) => <option key={l.id} value={l.id}>{l.name} ({repsOf(l)})</option>)}
-          </select>
-        </label>
+        <button type="button" onClick={addNew}>{isCore ? '+ new ab lift' : '+ new lift'}</button>
+        {!isCore && (
+          <label>
+            <span className="sr">Add a lift from another day</span>
+            <select value="" onChange={(e) => addExisting(e.target.value)} disabled={!others.length}>
+              <option value="">+ from another day&#8230;</option>
+              {others.map((l) => <option key={l.id} value={l.id}>{l.name} ({repsOf(l)})</option>)}
+            </select>
+          </label>
+        )}
       </div>
 
       <p className="mono10" style={{ margin: '14px 0 0', lineHeight: 1.5, color: '#4A3A60' }}>
-        days run in this order, one after another; a missed day just waits. on the plate, tick each set,
-        then set the reps you got on the last one. hit the top of the range and the next session adds weight.
+        {isCore
+          ? <>the ab lifts follow every day&#8217;s lifts on the plate, after the bar. while the week still owes ab days, the last lift hands on to them.</>
+          : <>days run in this order, one after another; a missed day just waits. on the plate, tick each set,
+            then set the reps you got on the last one. hit the top of the range and the next session adds weight.</>}
       </p>
 
       <div className="ed-foot">
-        <button type="button" className="mtog" onClick={removeDay} disabled={days.length < 2}>remove day: {day.name}</button>
+        {isCore ? <span /> : <button type="button" className="mtog" onClick={removeDay} disabled={days.length < 2}>remove day: {day.name}</button>}
         <button type="button" className="mtog" onClick={reset}>reset to the sheet</button>
       </div>
 

@@ -37,6 +37,8 @@ pastel print-ware over an 1851 atlas. the rules:
 - weekly heat: primary mover counts 1 set, other `hit` muscles ½
 - weight: blank → first `+` gives last session's weight (or 45) → +5; the number is also typeable. ticking a set with no weight carries last session's weight
 - "seal the plate" marks the session sealed and opens the week
+- ab work is a weekly quota (default 4×, set under Lifts → `Abs ×4`), not a rotation day. its lifts ride after every day's lifts on the plate (dotted `Ab` tabs) and log to `session.core`, so an ab-only rest day never advances push → pull → legs. any ab set ticked counts the day; weeks run mon–sun
+- while the week still owes ab days, the day's last lift hands on to the abs instead of sealing. ab work alone ends in "note the abdomen", which files nothing
 - fonts self-hosted via @fontsource so offline works
 
 ## not yet

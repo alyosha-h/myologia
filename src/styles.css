@@ -337,3 +337,17 @@ html[data-route='plate'], html[data-route='plate'] body { overflow: hidden; over
 .ed-foot { display: flex; justify-content: space-between; gap: 6px; margin-top: 14px; }
 .ed-foot .mtog { background: transparent; }
 .ed-foot .mtog:disabled { opacity: 0.3; }
+
+/* ab work: the quota meter, and the ab tabs set off from the day's lifts */
+.abm { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.abm i { display: block; border: 1px solid var(--ink); }
+.abm i.over { border-style: dashed; }
+.w-tabs li.w-tab-gap { flex: 0 0 2px; align-self: stretch; margin: 4px 0; background: var(--ink); }
+.w-tab-l sup { font-size: 10px; margin-left: 1px; }
+.strip7 li > span:first-child { position: relative; }
+.ab-tag { position: absolute; left: 3px; top: 3px; padding: 2px 3px 1px; background: var(--yellow); color: var(--ink); border: 1px solid var(--ink); font: 500 9px/1 var(--mono); font-style: normal; }
+.ab-row { display: flex; align-items: center; gap: 8px; min-height: 44px; border-top: 1px dashed var(--ink); }
+.ab-row .xb { font-size: 15px; }
+.wk-ab { display: flex; align-items: center; gap: 8px; margin: 10px 26px 0 0; flex-wrap: wrap; }
+.wk-ab .xb { font-size: 17px; }
+.ed-letter sup { font-size: 11px; }

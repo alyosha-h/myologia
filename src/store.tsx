@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { cloudChanged, cloudCode, linkCloud as linkCloudSave, pull as pullCloud, unlinkCloud as unlinkCloudSave, type CloudStatus, type SaveShape } from './cloud';
+import { cloudChanged, cloudCode, exportSave, fingerprint, linkCloud as linkCloudSave, migrated, pull as pullCloud, unlinkCloud as unlinkCloudSave, type CloudStatus, type SaveShape } from './cloud';
 import { clear, get, getAll, put, putMany } from './db';
-import { MUSCLES, PROGRAM_VERSION, normLift, seedProgram, type Day, type Lift, type Session } from './data';
+import { MUSCLES, PROGRAM_VERSION, normLift, seedCore, seedProgram, type Core, type Day, type Entry, type Lift, type Session } from './data';
 
 /* ---------- dates (local, not UTC) ---------- */
 
@@ -25,12 +25,16 @@ export const isoWeek = (d: Date) => {
 
 export const setsDoneIn = (s: Session, liftId: string) => s.entries[liftId]?.setsDone.filter(Boolean).length ?? 0;
 export const hasWork = (s: Session) => s.sealed || Object.values(s.entries).some((e) => e.setsDone.some(Boolean));
+/** any ab set ticked that day */
+export const hasCore = (s: Session | undefined) => !!s && Object.values(s.core ?? {}).some((e) => e.setsDone.some(Boolean));
+export const coreSetsDone = (s: Session, liftId: string) => s.core?.[liftId]?.setsDone.filter(Boolean).length ?? 0;
 
 interface Data {
   ready: boolean;
   lifts: Record<string, Lift>;
   days: Day[];
   sessions: Record<string, Session>;
+  core: Core;
 }
 
 export interface Suggestion {
@@ -60,8 +64,11 @@ interface Api extends Data {
   sessionNumber: (date: string) => number;
   /** what to put on the bar for this lift on `date`, from the last time it was done */
   suggest: (liftId: string, date: string) => Suggestion;
+  /** days with ab work in the 7 days starting monday */
+  coreWeek: (monday: Date) => number;
   saveLift: (l: Lift) => void;
   saveDays: (days: Day[]) => void;
+  saveCore: (c: Core) => void;
   resetProgram: () => Promise<void>;
   cloudStatus: CloudStatus;
   cloudCode: string | null;
@@ -90,7 +97,7 @@ function useToday() {
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<Data>({ ready: false, lifts: {}, days: [], sessions: {} });
+  const [data, setData] = useState<Data>({ ready: false, lifts: {}, days: [], sessions: {}, core: { perWeek: 4, lifts: [] } });
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>('off');
   const [cloudCodeState, setCloudCodeState] = useState<string | null>(null);
   const today = useToday();
@@ -98,12 +105,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const adoptSave = useCallback((s: SaveShape) => {
     const lifts = s.lifts.map(normLift);
     const days = [...s.days].sort((a, b) => ((a as Day & { order?: number }).order ?? 0) - ((b as Day & { order?: number }).order ?? 0));
-    setData({
+    setData((d) => ({
       ready: true,
       lifts: Object.fromEntries(lifts.map((l) => [l.id, l])),
       days,
       sessions: Object.fromEntries(s.sessions.map((x) => [x.id, x])),
-    });
+      core: s.core ?? d.core,
+    }));
   }, []);
 
   useEffect(() => {
@@ -126,6 +134,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         await putMany('sessions', sessions);
         await put('meta', { key: 'program', v: PROGRAM_VERSION });
       }
+      let core = await get<Core & { key: string }>('meta', 'core');
+      if (!core) {
+        // ab work arrives: two ab lifts and a weekly quota, beside the rotation. lift ids already taken are left alone
+        const before = fingerprint(await exportSave());
+        const seed = seedCore();
+        const add = seed.lifts.filter((l) => !lifts.some((x) => x.id === l.id));
+        lifts = [...lifts, ...add];
+        core = { key: 'core', ...seed.core };
+        await putMany('lifts', add);
+        await put('meta', core);
+        await migrated(before);
+      }
       lifts = lifts.map(normLift);
       days.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       setData({
@@ -133,6 +153,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         lifts: Object.fromEntries(lifts.map((l) => [l.id, l])),
         days,
         sessions: Object.fromEntries(sessions.map((s) => [s.id, s])),
+        core: { perWeek: core.perWeek, lifts: core.lifts },
       });
       navigator.storage?.persist?.().catch(() => {});
       const code = await cloudCode();
@@ -167,6 +188,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     cloudChanged(setCloudStatus);
   }, []);
 
+  const saveCore = useCallback((c: Core) => {
+    setData((d) => ({ ...d, core: c }));
+    put('meta', { key: 'core', perWeek: c.perWeek, lifts: c.lifts }).catch((e) => console.error('save failed', e));
+    cloudChanged(setCloudStatus);
+  }, []);
+
   const resetProgram = useCallback(async () => {
     const seed = seedProgram();
     await clear('days');
@@ -192,8 +219,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [adoptSave]);
 
   const api = useMemo<Api>(() => {
-    const { days, sessions, lifts } = data;
+    const { days, sessions, lifts, core } = data;
     const sorted = Object.values(sessions).filter(hasWork).sort((a, b) => a.date.localeCompare(b.date));
+    const coreSorted = Object.values(sessions).filter(hasCore).sort((a, b) => a.date.localeCompare(b.date));
+    /** where a lift's history lives: ab lifts in `core` on any day, the rest in `entries` on worked days */
+    const historyOf = (liftId: string): [Session[], (s: Session) => Entry | undefined] =>
+      core.lifts.includes(liftId) ? [coreSorted, (s) => s.core?.[liftId]] : [sorted, (s) => s.entries[liftId]];
     const dayById = (id: string) => days.find((d) => d.id === id) ?? days[0];
     const after = (id: string) => days[(days.findIndex((d) => d.id === id) + 1) % days.length];
 
@@ -215,10 +246,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     const prevWeight = (liftId: string, before: string) => {
-      for (let i = sorted.length - 1; i >= 0; i--) {
-        const s = sorted[i];
+      const [pool, entryIn] = historyOf(liftId);
+      for (let i = pool.length - 1; i >= 0; i--) {
+        const s = pool[i];
         if (s.date >= before) continue;
-        const w = s.entries[liftId]?.weight;
+        const w = entryIn(s)?.weight;
         if (w != null) return w;
       }
       return null;
@@ -229,7 +261,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const lo = iso(monday), hi = iso(addDays(monday, 7));
       for (const s of Object.values(sessions)) {
         if (s.date < lo || s.date >= hi) continue;
-        for (const [liftId, e] of Object.entries(s.entries)) {
+        for (const [liftId, e] of [...Object.entries(s.entries), ...Object.entries(s.core ?? {})]) {
           const l = lifts[liftId];
           if (!l) continue;
           const n = e.setsDone.filter(Boolean).length;
@@ -245,11 +277,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const l = lifts[liftId];
       if (!l) return { weight: null, why: 'none', from: null };
       // past exposures, newest first: a weight and at least one set
-      const hist: { w: number; e: Session['entries'][string] }[] = [];
-      for (let i = sorted.length - 1; i >= 0 && hist.length < 3; i--) {
-        const s = sorted[i];
+      const hist: { w: number; e: Entry }[] = [];
+      const [pool, entryIn] = historyOf(liftId);
+      for (let i = pool.length - 1; i >= 0 && hist.length < 3; i--) {
+        const s = pool[i];
         if (s.date >= date) continue;
-        const e = s.entries[liftId];
+        const e = entryIn(s);
         if (e?.weight != null && e.setsDone.some(Boolean)) hist.push({ w: e.weight, e });
       }
       if (!hist.length) return l.start != null ? { weight: l.start, why: 'start', from: null } : { weight: null, why: 'none', from: null };
@@ -261,8 +294,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { weight: w, why: 'hold', from: w };
     };
 
-    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber, suggest, saveLift, saveDays, resetProgram, cloudStatus, cloudCode: cloudCodeState, linkCloud, unlinkCloud, syncNow };
-  }, [data, today, saveSession, saveLift, saveDays, resetProgram, cloudStatus, cloudCodeState, linkCloud, unlinkCloud, syncNow]);
+    const coreWeek = (monday: Date) => {
+      const lo = iso(monday), hi = iso(addDays(monday, 7));
+      return coreSorted.filter((s) => s.date >= lo && s.date < hi).length;
+    };
+
+    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber, suggest, coreWeek, saveLift, saveDays, saveCore, resetProgram, cloudStatus, cloudCode: cloudCodeState, linkCloud, unlinkCloud, syncNow };
+  }, [data, today, saveSession, saveLift, saveDays, saveCore, resetProgram, cloudStatus, cloudCodeState, linkCloud, unlinkCloud, syncNow]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
