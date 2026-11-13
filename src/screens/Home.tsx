@@ -11,13 +11,15 @@ const MOON: Record<PlateId, { pos: string; tints: [string, string][]; name: stri
   IV: { pos: '58% 30%', name: 'The Arm', color: C.mint, tints: [['sdelt', C.dlav], ['bic', C.coral]] },
 };
 
-const MOTTOS = [
-  { t: 'A', a: 'Faithful', b: 'Body.', pad: 96 },
+const MOTTOS: { t: string; a: string; b: string; pad: number; la?: boolean }[] = [
   { t: 'The', a: 'Body,', b: 'Opened.', pad: 60 },
-  { t: 'Sic', a: 'itur ad', b: 'astra.', pad: 90 },
+  { t: 'Ecce', a: 'homo,', b: 'in parts.', pad: 40 },
   { t: 'The', a: 'Flesh,', b: 'Annotated.', pad: 0 },
+  { t: 'Bound', a: 'for', b: 'Glory.', pad: 110 },
   { t: 'A', a: 'Plate', b: 'a Day.', pad: 96 },
-  { t: 'Per', a: 'ardua', b: 'ad astra.', pad: 30 },
+  { t: 'Nosce', a: 'te', b: 'ipsum.', pad: 120, la: true }, // know thyself: the anatomy theatre's own motto
+  { t: 'Skin', a: 'is', b: 'Optional.', pad: 50 },
+  { t: 'Per', a: 'ardua', b: 'ad astra.', pad: 30, la: true },
 ];
 
 function Motto() {
@@ -39,7 +41,7 @@ function Motto() {
   return (
     <h1 className="motto">
       <button type="button" className={`hl ${out ? 'h-out' : ''}`} onClick={() => { advance(); start(); }}
-        aria-label={`${h.t} ${h.a} ${h.b}, tap for another motto`}>
+        lang={h.la ? 'la' : undefined} aria-label={`${h.t} ${h.a} ${h.b}, tap for another motto`}>
         <span style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
           <span className="blk b1" style={{ backgroundImage: `linear-gradient(${C.lime},${C.lime})` }}><span className="txt">{h.t}</span></span>
           <span className="blk b2" style={{ backgroundImage: `linear-gradient(${C.chart},${C.chart})` }}><span className="txt">{h.a}</span></span>
