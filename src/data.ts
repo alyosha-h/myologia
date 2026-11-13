@@ -110,6 +110,8 @@ export interface Lift {
   start: number | null;
   /** last set as many reps as possible */
   amrap?: boolean;
+  /** bar weight for plate math, lb. null = not a barbell lift (no plate math). undefined = default by lift id */
+  bar?: number | null;
   note?: string;
   hit: string[]; // muscle keys, primary first
   /** legacy, pre-v2 lifts only */
@@ -156,6 +158,45 @@ const L = (id: string, name: string, sets: number, repMin: number, repMax: numbe
   ({ id, name, sets, repMin, repMax, inc: start == null ? 0 : 2.5, start, hit, ...extra });
 
 export const PROGRAM_VERSION = 2;
+
+/* ---------- plate math ---------- */
+
+/** the sheet's barbell lifts. any other lift has no bar until one is set in the editor */
+const BARBELL = new Set(['deadlift', 'barbell-row', 'bench-press', 'incline-bench-press', 'squat', 'romanian-deadlift', 'barbell-hack-squat']);
+export const barOf = (l: Lift): number | null => (l.bar !== undefined ? l.bar : BARBELL.has(l.id) ? 45 : null);
+
+export const PLATE_SIZES = [55, 45, 35, 25, 15, 10, 5, 2.5, 1.25];
+export const DEFAULT_PLATES = [45, 35, 25, 10, 5, 2.5];
+export const DISC_COLOR: Record<number, string> = {
+  55: C.peri, 45: C.coral, 35: C.yellow, 25: C.mint, 15: C.dlav, 10: C.lav, 5: C.chart, 2.5: C.white, 1.25: C.white,
+};
+
+/**
+ * what goes on each side of the bar for `w`, largest plates first, as many pairs of each as needed.
+ * `short` = lb per side that the plates on hand can't make (0 when exact). null when `w` is under the bar.
+ */
+export function loadFor(w: number, bar: number, plates: number[]): { side: number[]; short: number } | null {
+  if (w < bar) return null;
+  let rest = (w - bar) / 2;
+  const side: number[] = [];
+  for (const p of [...plates].sort((a, b) => b - a)) {
+    while (rest >= p - 1e-9) { side.push(p); rest -= p; }
+  }
+  return { side, short: Math.round(rest * 1000) / 1000 };
+}
+
+const PLATES_KEY = 'myologia.plates';
+/** plates on hand are this gym's, so they stay on this device */
+export function platesOnHand(): number[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(PLATES_KEY) ?? 'null');
+    if (Array.isArray(v) && v.every((x) => typeof x === 'number')) return v;
+  } catch { /* private mode, bad json */ }
+  return DEFAULT_PLATES;
+}
+export function savePlatesOnHand(p: number[]) {
+  try { localStorage.setItem(PLATES_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+}
 
 export function seedProgram(): { lifts: Lift[]; days: Day[] } {
   const lifts = [

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { C, DAY_COLOR, MUSCLES, PLATES, kindOf, palFor, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
+import { C, DAY_COLOR, MUSCLES, PLATES, DISC_COLOR, barOf, kindOf, loadFor, platesOnHand, palFor, plateOfLift, posFor, repsOf, schemeOf, type Entry } from '../data';
 import { DOW, coreSetsDone, ddmm, fromIso, hasCore, hasWork, nextAfter, setsDoneIn, useStore, weekStart } from '../store';
 import { AbMeter, Callout, Chip, LetterTile, Nav, PlateLayers, openHint, transitionHint, useSize } from '../ui';
 import type { Tint } from '../ui';
@@ -126,6 +126,10 @@ export default function Workout() {
   const hint = sug.why === 'up' ? `\u2191 +${L.inc}, was ${sug.from}` : sug.why === 'deload' ? `deload, was ${sug.from}`
     : sug.why === 'hold' ? `hold, last ${sug.from}` : sug.why === 'start' ? 'start weight' : L.note ?? 'bodyweight';
   const pad = (n: number) => (n < 10 ? '0' : '') + n;
+  const bar = barOf(L);
+  const load = bar != null && w != null ? loadFor(w, bar, platesOnHand()) : null;
+  const loadLabel = bar == null || w == null ? '' : !load ? `under the ${bar} lb bar`
+    : !load.side.length ? `empty ${bar} lb bar` : `per side ${load.side.join(', ')} on a ${bar} lb bar${load.short > 0 ? `, ${load.short} lb short each side` : ''}`;
 
   return (
     <div className="screen-plate">
@@ -222,6 +226,21 @@ export default function Workout() {
               {L.sets} sets &#183; {repsOf(L)} reps{L.amrap ? ' \u00b7 amrap' : ''}
               <br /><span style={{ background: sug.why === 'up' ? C.chart : sug.why === 'deload' ? C.coral : C.white, padding: '1px 4px' }}>{hint}</span>
             </span>
+          )}
+        </div>
+        <div className="w-load" aria-label={loadLabel || undefined}>
+          {bar != null && w != null && (
+            <>
+              <span className="mono9" aria-hidden="true">per side</span>
+              {!load ? <span className="mono10" aria-hidden="true">under the bar</span>
+                : !load.side.length ? <span className="mono10" aria-hidden="true">bar only</span>
+                : load.side.map((p, k) => (
+                  <span key={k} aria-hidden="true" className="w-plate" style={{ background: DISC_COLOR[p] ?? C.white, color: p === 55 ? C.white : C.ink, height: 10 + Math.sqrt(p) * 1.6 }}>{p}</span>
+                ))}
+              {load && load.short > 0 && <span className="mono9" aria-hidden="true" style={{ background: C.coral, padding: '1px 4px' }}>{load.short} short</span>}
+              <span style={{ flexGrow: 1 }} />
+              <span className="mono9" aria-hidden="true">bar {bar}</span>
+            </>
           )}
         </div>
         <div role="group" aria-label="Sets" className="w-sets">

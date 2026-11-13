@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { C, DAY_COLOR, MUSCLES, PLATE_IDS, PLATES, kindOf, palFor, repsOf, schemeOf, slug, type Day, type Lift } from '../data';
+import { C, DAY_COLOR, MUSCLES, DISC_COLOR, PLATE_IDS, PLATE_SIZES, PLATES, barOf, kindOf, platesOnHand, savePlatesOnHand, palFor, repsOf, schemeOf, slug, type Day, type Lift } from '../data';
 import { useStore } from '../store';
 import { Chip, Nav } from '../ui';
 
@@ -8,9 +8,10 @@ const PRIMARY_FOR: Record<string, string> = { Push: 'pec', Pull: 'lat', Legs: 'q
 const CORE = 'core';
 
 /** − value + ; null shows as "—" */
-function Num({ label, value, step, min = 0, max = 999, onChange, nullable = false, unit }: {
+function Num({ label, value, step, min = 0, max = 999, onChange, nullable = false, unit, base = 0 }: {
   label: string; value: number | null; step: number; min?: number; max?: number;
   onChange: (v: number | null) => void; nullable?: boolean; unit?: string;
+  /** what + gives from empty */ base?: number;
 }) {
   const clamp = (v: number) => Math.max(min, Math.min(max, Math.round(v * 100) / 100));
   return (
@@ -30,7 +31,7 @@ function Num({ label, value, step, min = 0, max = 999, onChange, nullable = fals
             }} />
           {unit && <span className="mono9">{unit}</span>}
         </label>
-        <button type="button" aria-label={`More ${label}`} onClick={() => onChange(clamp((value ?? 0) + step))}>+</button>
+        <button type="button" aria-label={`More ${label}`} onClick={() => onChange(value == null && base ? base : clamp((value ?? 0) + step))}>+</button>
       </div>
     </div>
   );
@@ -56,11 +57,13 @@ function LiftForm({ lift, sharedWith, onSave }: { lift: Lift; sharedWith: string
       <div className="ed-row">
         <Num label="start weight" value={lift.start} step={2.5} nullable unit="lb" onChange={(v) => set({ start: v })} />
         <Num label="add when earned" value={lift.inc} step={2.5} max={50} unit="lb" onChange={(v) => set({ inc: v ?? 0 })} />
+        <Num label="bar" value={barOf(lift)} step={5} max={100} nullable base={45} unit="lb" onChange={(v) => set({ bar: v })} />
       </div>
       <p className="mono10 ed-rule">
         {lift.inc > 0
           ? <>all {lift.sets} sets done and {lift.repMax} reps on the last set &#8594; +{lift.inc} lb next time. three misses at one weight &#8594; &#8722;10%.</>
           : <>no automatic increase. weight carries over from last time.</>}
+        {' '}{barOf(lift) != null ? <>plates per side are worked out on a {barOf(lift)} lb bar.</> : <>no bar, so no plate math (bar &#8212; for dumbbells, cables, machines).</>}
       </p>
       <button type="button" className="mtog" aria-pressed={!!lift.amrap} onClick={() => set({ amrap: !lift.amrap })}
         style={{ alignSelf: 'flex-start', background: lift.amrap ? C.chart : 'transparent' }}>
@@ -98,6 +101,30 @@ function LiftForm({ lift, sharedWith, onSave }: { lift: Lift; sharedWith: string
       {sharedWith.length > 0 && (
         <p className="mono10 ed-rule">also on {sharedWith.join(', ')}. it&#8217;s one lift: edits and progress apply to every day it&#8217;s on.</p>
       )}
+    </div>
+  );
+}
+
+function PlatesOnHand() {
+  const [on, setOn] = useState(platesOnHand);
+  const toggle = (p: number) => {
+    const next = on.includes(p) ? on.filter((x) => x !== p) : [...on, p].sort((a, b) => b - a);
+    setOn(next); savePlatesOnHand(next);
+  };
+  return (
+    <div style={{ marginTop: 22 }}>
+      <span className="mono9">plates on hand (lb, pairs, this device)</span>
+      <div className="ed-chips" style={{ marginTop: 6 }}>
+        {PLATE_SIZES.map((p) => {
+          const s = on.includes(p);
+          return (
+            <button key={p} type="button" className="mtog" aria-pressed={s} onClick={() => toggle(p)}
+              style={{ background: s ? DISC_COLOR[p] : 'transparent', color: s && p === 55 ? C.white : C.ink, minWidth: 44, borderWidth: s ? 2 : 1, borderStyle: s ? 'solid' : 'dashed' }}>
+              {p}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -330,6 +357,8 @@ export default function Edit() {
         {isCore ? <span /> : <button type="button" className="mtog" onClick={removeDay} disabled={days.length < 2}>remove day: {day.name}</button>}
         <button type="button" className="mtog" onClick={reset}>reset to the sheet</button>
       </div>
+
+      <PlatesOnHand />
 
       <CloudSync />
 
