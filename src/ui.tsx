@@ -61,13 +61,13 @@ export function Turn({ phase, back, slats, kicker, label }: {
   );
 }
 
-export type Route = 'home' | 'plate' | 'week' | 'masks' | 'edit';
+export type Route = 'home' | 'plate' | 'week' | 'masks' | 'edit' | 'lift';
 
 /** the same four tabs in the same order on every screen */
 const TABS: Route[] = ['home', 'plate', 'week', 'edit'];
 
 export function Nav({ current, h = 48 }: { current: Route; h?: number }) {
-  const label: Record<Route, string> = { home: 'Home', plate: 'Plate', week: 'Week', masks: 'Masks', edit: 'Lifts' };
+  const label: Record<Route, string> = { home: 'Home', plate: 'Plate', week: 'Week', masks: 'Masks', edit: 'Lifts', lift: 'Lift' };
   return (
     <nav aria-label="Atlas" className="nav" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
       {TABS.map((r) => r === current

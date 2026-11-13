@@ -105,6 +105,7 @@ function LiftForm({ lift, sharedWith, onSave }: { lift: Lift; sharedWith: string
         <span className="mono9">note</span>
         <input value={lift.note ?? ''} placeholder="&#8212;" onChange={(e) => set({ note: e.target.value || undefined })} />
       </label>
+      <a href={`#/lift/${encodeURIComponent(lift.id)}`} className="mtog" style={{ alignSelf: 'flex-start', color: C.ink, textDecoration: 'none', background: C.white }}>history &#8594;</a>
       {sharedWith.length > 0 && (
         <p className="mono10 ed-rule">also on {sharedWith.join(', ')}. it&#8217;s one lift: edits and progress apply to every day it&#8217;s on.</p>
       )}

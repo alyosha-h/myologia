@@ -64,6 +64,8 @@ interface Api extends Data {
   sessionNumber: (date: string) => number;
   /** what to put on the bar for this lift on `date`, from the last time it was done */
   suggest: (liftId: string, date: string) => Suggestion;
+  /** every session this lift was logged in (a weight or a set), oldest first */
+  history: (liftId: string) => { date: string; dayId: string; e: Entry }[];
   /** days with ab work in the 7 days starting monday */
   coreWeek: (monday: Date) => number;
   saveLift: (l: Lift) => void;
@@ -294,12 +296,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return { weight: w, why: 'hold', from: w };
     };
 
+    const history = (liftId: string) => {
+      const isCore = core.lifts.includes(liftId);
+      return Object.values(sessions)
+        .map((s) => ({ date: s.date, dayId: isCore ? 'core' : s.dayId, e: (isCore ? s.core?.[liftId] : s.entries[liftId]) as Entry | undefined }))
+        .filter((x): x is { date: string; dayId: string; e: Entry } => !!x.e && (x.e.weight != null || x.e.setsDone.some(Boolean)))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    };
+
     const coreWeek = (monday: Date) => {
       const lo = iso(monday), hi = iso(addDays(monday, 7));
       return coreSorted.filter((s) => s.date >= lo && s.date < hi).length;
     };
 
-    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber, suggest, coreWeek, saveLift, saveDays, saveCore, resetProgram, cloudStatus, cloudCode: cloudCodeState, linkCloud, unlinkCloud, syncNow };
+    return { ...data, today, dayById, sessionFor, saveSession, plannedDays, prevWeight, weekVolume, sessionNumber, suggest, history, coreWeek, saveLift, saveDays, saveCore, resetProgram, cloudStatus, cloudCode: cloudCodeState, linkCloud, unlinkCloud, syncNow };
   }, [data, today, saveSession, saveLift, saveDays, saveCore, resetProgram, cloudStatus, cloudCodeState, linkCloud, unlinkCloud, syncNow]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

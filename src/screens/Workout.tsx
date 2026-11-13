@@ -186,7 +186,7 @@ export default function Workout() {
 
       <section key={`${day.id}-${idx}`} className="w-card cardA" aria-live="polite">
         <div className="w-card-top">
-          <h2>{L.name}</h2>
+          <h2><a href={`#/lift/${encodeURIComponent(L.id)}`} className="w-hist" aria-label={`${L.name}, history`}>{L.name}<span aria-hidden="true" className="mono9">hist.</span></a></h2>
           <span className="w-card-meta">
             {isCore ? (
               <span className="mono10" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
